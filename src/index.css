@@ -1,0 +1,116 @@
+/* Tailwind import */
+@import "tailwindcss";
+
+/* Floating card animation */
+.floating-card {
+  animation: float-card 10s ease-in-out infinite;
+}
+
+@keyframes float-card {
+  0%, 100% {
+    transform: translateY(0px) translateZ(0);
+  }
+  50% {
+    transform: translateY(-10px) translateZ(0);
+  }
+}
+
+/* ---------------------------------------------
+   PREMIUM SCROLL FADE-IN (Apple / Framer style)
+   --------------------------------------------- */
+.section-hidden {
+  opacity: 0;
+  transform: translateY(40px) scale(0.97);
+  filter: blur(8px);
+  transition:
+    opacity 1s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 1s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.8s ease-out;
+  will-change: opacity, transform, filter;
+}
+
+.section-visible {
+  opacity: 1;
+  transform: translateY(0px) scale(1);
+  filter: blur(0px);
+}
+
+/* ---------------------------------------------
+   Mouse-follow glow effect
+   --------------------------------------------- */
+.mouse-glow {
+  width: 260px;
+  height: 260px;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle,
+    rgba(56, 189, 248, 0.18),
+    transparent 65%
+  );
+  filter: blur(38px);
+  transition: transform 0.12s ease-out;
+  pointer-events: none;
+}
+
+/* ---------------------------------------------
+   Orb rotation sync with slider
+   --------------------------------------------- */
+.orb-rotate {
+  transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---------------------------------------------
+   Glow trail for steps in HOW section
+   --------------------------------------------- */
+.step-glow {
+  transition: box-shadow 0.4s ease-out, background 0.4s ease-out;
+}
+
+.step-glow-active {
+  box-shadow: 0 0 22px rgba(34, 211, 238, 0.55);
+  background: rgba(34, 211, 238, 0.1);
+}
+
+/* Message fade-in animations */
+@keyframes fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in-left {
+  animation: fadeInLeft 0.4s ease-out;
+}
+
+.animate-fade-in-right {
+  animation: fadeInRight 0.4s ease-out;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}

@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+httpx
+python-dotenv
+pydantic
+aiofiles       # for file uploads optionally
+python-multipart
+Pillow         # For PIL/Image support (image processing)

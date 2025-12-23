@@ -74,6 +74,7 @@ export default function ChatAppPage() {
   const [showProfile, setShowProfile] = useState(false);
   const [showImages, setShowImages] = useState(false);
   const [storedImages, setStoredImages] = useState([]);
+  const [selectedImage, setSelectedImage] = useState(null); // State for image modal
   const [isHydrated, setIsHydrated] = useState(false); // Hydration flag to prevent race condition
   const navigate = useNavigate();
   const location = useLocation();
@@ -651,7 +652,7 @@ export default function ChatAppPage() {
                   <div
                     key={img.id}
                     className="rounded-lg border border-slate-800 bg-slate-900/90 p-2 hover:bg-slate-800 hover:border-slate-700 transition-colors cursor-pointer"
-                    onClick={() => addImageToChat(img)}
+                    onClick={() => setSelectedImage(img)}
                   >
                     <img
                       src={img.url}
@@ -826,6 +827,101 @@ export default function ChatAppPage() {
         </form>
 
       </main>
+
+      {/* Image Modal */}
+      {selectedImage && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 rounded-lg border border-slate-700 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-slate-900/95 border-b border-slate-700 p-4 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-100">Image Preview</h3>
+              <button
+                onClick={() => setSelectedImage(null)}
+                className="text-slate-400 hover:text-slate-200 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6">
+              {/* Image Display */}
+              <div className="mb-4 rounded-lg border border-slate-700 bg-black p-2 overflow-hidden">
+                <img
+                  src={selectedImage.url}
+                  alt={selectedImage.prompt || "Generated image"}
+                  className="w-full h-auto rounded"
+                />
+              </div>
+
+              {/* Image Details */}
+              <div className="mb-4 space-y-2">
+                <div>
+                  <p className="text-xs text-slate-400 mb-1">Prompt:</p>
+                  <p className="text-sm text-slate-200 bg-slate-800/50 rounded p-2">
+                    {selectedImage.prompt || "No prompt available"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-400 mb-1">Created:</p>
+                  <p className="text-sm text-slate-400">
+                    {new Date(selectedImage.created_at).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 flex-col sm:flex-row">
+                <button
+                  onClick={() => {
+                    addImageToChat(selectedImage);
+                    setSelectedImage(null);
+                  }}
+                  className="flex-1 rounded-lg bg-cyan-400 hover:bg-cyan-300 text-black font-medium py-2 px-3 text-sm transition-colors"
+                >
+                  Add to Chat
+                </button>
+                <button
+                  onClick={() => {
+                    // Download image
+                    const link = document.createElement("a");
+                    link.href = selectedImage.url;
+                    link.download = `image-${selectedImage.id}.png`;
+                    link.click();
+                  }}
+                  className="flex-1 rounded-lg border border-slate-600 hover:border-slate-500 hover:bg-slate-800 text-slate-300 font-medium py-2 px-3 text-sm transition-colors"
+                >
+                  Download
+                </button>
+                <button
+                  onClick={() => {
+                    // Copy to clipboard
+                    navigator.clipboard.writeText(selectedImage.url);
+                    alert("Image URL copied to clipboard!");
+                  }}
+                  className="flex-1 rounded-lg border border-slate-600 hover:border-slate-500 hover:bg-slate-800 text-slate-300 font-medium py-2 px-3 text-sm transition-colors"
+                >
+                  Copy URL
+                </button>
+                <button
+                  onClick={() => {
+                    // Delete image
+                    const updated = storedImages.filter(img => img.id !== selectedImage.id);
+                    localStorage.setItem("generated_images", JSON.stringify(updated));
+                    setStoredImages(updated);
+                    setSelectedImage(null);
+                  }}
+                  className="flex-1 rounded-lg border border-rose-600/50 hover:border-rose-500 hover:bg-rose-900/20 text-rose-300 font-medium py-2 px-3 text-sm transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

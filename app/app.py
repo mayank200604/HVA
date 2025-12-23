@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 import httpx
 from dotenv import load_dotenv
 import json
@@ -48,11 +49,14 @@ app = FastAPI(title="HVA Chatbot (FastAPI)", version="0.1")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173", "http://localhost:5174"],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount static files directory for generated images
+app.mount("/generated_images", StaticFiles(directory=IMAGE_DIR), name="generated_images")
 
 # --- Pydantic Models ---
 class Message(BaseModel):

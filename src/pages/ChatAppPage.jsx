@@ -163,6 +163,7 @@ export default function ChatAppPage() {
         id: chatIdToUse,
         title: `Image: ${(imageData.prompt || "Generated Image").slice(0, 30)}`,
         messages: [imageMessage],
+        conversationId: null  // Backend conversation ID
       };
       // Add new chat at the beginning (most recent first)
       setChatHistory((prev) => [newChat, ...prev]);
@@ -273,6 +274,7 @@ export default function ChatAppPage() {
         id: chatIdToUse,
         title: generateTitle(input.trim()),
         messages: [newMsg],
+        conversationId: null  // Backend conversation ID will be set after first response
       };
       // Add new chat at the beginning (most recent first)
       setChatHistory((prev) => [newChat, ...prev]);
@@ -301,16 +303,13 @@ export default function ChatAppPage() {
     setIsTyping(true);
     setDebugError(null);
 
-    // Prepare request body for backend
-    const formattedHistory = updatedMessages.map((msg) => ({
-      role: msg.role,
-      content: msg.text,
-    }));
+    // Get backend conversation ID from current chat
+    const currentChat = chatHistory.find(c => c.id === chatIdToUse);
+    const backendConversationId = currentChat?.conversationId || null;
 
     const requestBody = {
       message: newMsg.text,
-      session_id: chatIdToUse?.toString(),
-      history: formattedHistory.length > 0 ? formattedHistory : null,
+      conversation_id: backendConversationId,  // Send backend conversation_id instead of history
       max_tokens: 800,
     };
 
@@ -364,6 +363,15 @@ export default function ChatAppPage() {
       const handlePayload = (event) => {
         if (!event || typeof event !== "object") return;
         const contentCandidate = (event.accumulated || event.content || "").toString();
+
+        // --- Update backend conversation ID if received ---
+        if (event.conversation_id) {
+          setChatHistory((prev) =>
+            prev.map((chat) =>
+              chat.id === chatIdToUse ? { ...chat, conversationId: event.conversation_id } : chat
+            )
+          );
+        }
 
         if (event.type === "chunk") {
           assistantText = contentCandidate || assistantText;

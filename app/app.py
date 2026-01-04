@@ -14,19 +14,33 @@ import httpx
 from dotenv import load_dotenv
 import json
 import base64
-import time
 import re
+import logging
 import sys
 
-# Debug: print the absolute path of the running file
-import os
-print("🔥 RUNNING FILE:", os.path.abspath(__file__))
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler("app.log", encoding='utf-8')
+    ]
+)
+logger = logging.getLogger("hva_app")
 
+from storage import init_db, create_conversation, save_message, load_recent_messages, get_all_conversations, get_conversation_messages
+from rag.retriever import retrieve_documents
+from rag.prompt import build_rag_prompt
+
+
+# Debug: print the absolute path of the running file
+logger.info(f"🔥 RUNNING FILE: {os.path.abspath(__file__)}")
+
+init_db()
 
 # Add parent directory to sys.path to access 'rag' package
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from rag.retriever import retrieve_documents
-from rag.prompt import build_rag_prompt
 
 # Load environment variables from .env file in the same directory as this script
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
@@ -75,14 +89,9 @@ class Message(BaseModel):
     content: str
 
 class ChatRequest(BaseModel):
-    message: str                                  # singular and clear
-    session_id: Optional[str] = None
-    history: Optional[List[Message]] = None
-    max_tokens: Optional[int] = 800
-
-class ChatResponse(BaseModel):
-    reply: str
-    raw: Dict[str, Any]
+    message: str
+    conversation_id: Optional[str] = None
+    max_tokens: Optional[int] = 1000
 
 class ImageGenRequest(BaseModel):
     prompt: str
@@ -91,17 +100,10 @@ class ImageGenRequest(BaseModel):
     style: Optional[str] = None  # ignored for now
 
 # --- Utility Functions ---
-def trim_history(history: Optional[List[Message]], max_turns: int = 6) -> List[Message]:
-    """
-    Keep only the most recent `max_turns` turns.
-    Each turn is user + assistant, so we keep max_turns * 2 messages.
-    Returns a list of Message objects (may be empty).
-    """
-    if not history:
-        return []
-    return history[-max_turns * 2 :]
 
-
+def save_file_sync(path: str, data: bytes):
+    with open(path, "wb") as f:
+        f.write(data)
 # simple router: pick model string based on user text
 def pick_model_for_request(text: str) -> str:
     t = text.lower()
@@ -487,16 +489,24 @@ async def stream_response(req: ChatRequest):
         yield f"data: {json.dumps({'error': 'Message content is required.'})}\n\n"
         return
 
-    system_message = {"role": "system", "content": HVA_SYSTEM_PROMPT}
-
-    # Trim history
-    history_msgs = trim_history(req.history, max_turns=6)
-    history_as_dicts = [{"role": m.role, "content": m.content} for m in history_msgs] if history_msgs else []
-
-    # Build message list
-    messages: List[Dict[str, str]] = [system_message]
-    if history_as_dicts:
-        messages.extend(history_as_dicts)
+    # --- 1️⃣ Handle conversation ID ---
+    conversation_id = req.conversation_id
+    if not conversation_id:
+        # Create a new conversation
+        conversation_id = str(uuid.uuid4())
+        try:
+            create_conversation(conversation_id)
+        except Exception as e:
+            logger.warning(f"Failed to create conversation: {e}")
+    
+    # --- 2️⃣ Load recent messages from database ---
+    past_messages = load_recent_messages(conversation_id, limit=12)
+    
+    # --- 3️⃣ Build message list with system prompt and history ---
+    messages: List[Dict[str, str]] = [{"role": "system", "content": HVA_SYSTEM_PROMPT}]
+    
+    for role, content in past_messages:
+        messages.append({"role": role, "content": content})
 
     messages.append({"role": "user", "content": req.message})
 
@@ -525,6 +535,12 @@ async def stream_response(req: ChatRequest):
 
     # ------------------ MAIN FLOW ------------------
     try:
+        # --- 4️⃣ Save user message to database ---
+        try:
+            await asyncio.to_thread(save_message, conversation_id, "user", req.message, None)
+        except Exception as e:
+            logger.warning(f"Failed to save user message: {e}")
+        
         response = await call_preferred_api(
             model_choice,
             messages,
@@ -542,6 +558,12 @@ async def stream_response(req: ChatRequest):
         if not reply.strip():
             reply = "[DEBUG] Empty response from model."
 
+        # --- 5️⃣ Save assistant reply to database ---
+        try:
+            await asyncio.to_thread(save_message, conversation_id, "assistant", reply, model_choice)
+        except Exception as e:
+            logger.warning(f"Failed to save assistant message: {e}")
+
         # --- stream chunks ---
         chunk_size = 64
         accumulated = ""
@@ -554,12 +576,16 @@ async def stream_response(req: ChatRequest):
                 "content": chunk_text,
                 "accumulated": accumulated
             }
+            if i == 0:
+                chunk["conversation_id"] = conversation_id
+            
             yield f"data: {json.dumps(chunk)}\n\n"
 
         # --- final event ---
         completion = {
             "type": "done",
-            "content": reply
+            "content": reply,
+            "conversation_id": conversation_id  # Send conversation_id back to frontend
         }
         yield f"data: {json.dumps(completion)}\n\n"
 
@@ -570,7 +596,11 @@ async def stream_response(req: ChatRequest):
 
         if model_choice == "gemini" and status in (401, 403, 404):
             try:
-                fallback_msgs = [system_message] + history_as_dicts + [{"role": "user", "content": req.message}]
+                # Rebuild message list for fallback
+                fallback_msgs = [{"role": "system", "content": HVA_SYSTEM_PROMPT}]
+                for role, content in past_messages:
+                    fallback_msgs.append({"role": role, "content": content})
+                fallback_msgs.append({"role": "user", "content": req.message})
 
                 response = await call_preferred_api(
                     "groq",
@@ -583,6 +613,12 @@ async def stream_response(req: ChatRequest):
 
                 reply = extract_text_from_model_response(response) or "[DEBUG] Empty fallback response."
 
+                # --- Save fallback response to database ---
+                try:
+                    await asyncio.to_thread(save_message, conversation_id, "assistant", reply, "groq")
+                except Exception as e:
+                    logger.warning(f"Failed to save fallback message: {e}")
+
                 chunk_size = 12
                 accumulated = ""
 
@@ -594,11 +630,15 @@ async def stream_response(req: ChatRequest):
                         "content": chunk_text,
                         "accumulated": accumulated
                     }
+                    if i == 0:
+                        chunk["conversation_id"] = conversation_id
+
                     yield f"data: {json.dumps(chunk)}\n\n"
 
                 completion = {
                     "type": "done",
-                    "content": reply
+                    "content": reply,
+                    "conversation_id": conversation_id
                 }
                 yield f"data: {json.dumps(completion)}\n\n"
 
@@ -644,33 +684,31 @@ async def generate_image(req: ImageGenRequest):
 
     try:
         response = await call_preferred_api(model_choice, messages, max_tokens=1, temperature=0.0, top_p=1.0, stream=False)
-        print(f"[DEBUG] Image API response type: {type(response)}")
+        logger.debug(f"Image API response type: {type(response)}")
         if isinstance(response, dict):
-            print(f"[DEBUG] Image API response keys: {list(response.keys())}")
+            logger.debug(f"Image API response keys: {list(response.keys())}")
             if "artifacts" in response:
-                print(f"[DEBUG] Artifacts count: {len(response.get('artifacts', []))}")
+                logger.debug(f"Artifacts count: {len(response.get('artifacts', []))}")
                 if response.get("artifacts"):
                     artifact = response["artifacts"][0]
-                    print(f"[DEBUG] First artifact keys: {list(artifact.keys()) if isinstance(artifact, dict) else 'not a dict'}")
+                    logger.debug(f"First artifact keys: {list(artifact.keys()) if isinstance(artifact, dict) else 'not a dict'}")
         if isinstance(response, dict) and "error" in response:
-            print(f"[DEBUG] Error in response: {response.get('error')}")
+            logger.debug(f"Error in response: {response.get('error')}")
     except HTTPException as e:
-        print(f"[DEBUG] HTTPException from API: {e.detail}")
+        logger.debug(f"HTTPException from API: {e.detail}")
         return JSONResponse(status_code=e.status_code, content={"error": "upstream_error", "detail": e.detail})
     except Exception as e:
-        print(f"[DEBUG] Exception calling API: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Exception calling API: {e}", exc_info=True)
         return JSONResponse(status_code=502, content={"error": "upstream_error", "detail": str(e)})
 
     # Check if response contains an error
     if isinstance(response, dict) and response.get("error"):
-        print(f"[DEBUG] API returned error: {response.get('error')}")
+        logger.debug(f"API returned error: {response.get('error')}")
         return JSONResponse(status_code=502, content={"error": "upstream_error", "detail": response.get("error")})
 
     # try to extract base64
     b64 = extract_hf_base64(response)
-    print(f"[DEBUG] Extracted b64: {b64[:50] if b64 else 'None'}...")
+    logger.debug(f"Extracted b64: {b64[:50] if b64 else 'None'}...")
     
     if not b64:
         # If HF API returns 'error' dict, surface it
@@ -694,8 +732,7 @@ async def generate_image(req: ImageGenRequest):
     orig_name = f"{img_id}_orig.{ext}"
     orig_path = os.path.join(IMAGE_DIR, orig_name)
     try:
-        with open(orig_path, "wb") as f:
-            f.write(img_bytes)
+        await asyncio.to_thread(save_file_sync, orig_path, img_bytes)
     except Exception as e:
         return JSONResponse(status_code=500, content={"error":"save_failed","detail": str(e)})
 
@@ -712,8 +749,7 @@ async def generate_image(req: ImageGenRequest):
         # fallback copy original as thumb if processing fails
         try:
             # try writing original bytes as thumb (may be png/jpg)
-            with open(thumb_path, "wb") as out:
-                out.write(img_bytes)
+            await asyncio.to_thread(save_file_sync, thumb_path, img_bytes)
             thumb_name = orig_name
             thumb_path = orig_path
         except Exception as e:
@@ -750,19 +786,9 @@ async def serve_generated_image(filename: str):
     return FileResponse(path, media_type=media_type)
 
 # --- Optional cleanup helper (call from scheduled job) ---
-def cleanup_generated_images(max_age_seconds: int = 24*3600):
-    now = time.time()
-    for fname in os.listdir(IMAGE_DIR):
-        path = os.path.join(IMAGE_DIR, fname)
-        try:
-            mtime = os.path.getmtime(path)
-            if now - mtime > max_age_seconds:
-                os.remove(path)
-        except Exception:
-            pass
-
 class RagRequest(BaseModel):
     message: str
+    conversation_id: Optional[str] = None
 
 @app.post("/rag/chat")
 async def rag_chat_endpoint(req: RagRequest):
@@ -771,6 +797,15 @@ async def rag_chat_endpoint(req: RagRequest):
     Retrieves info from rag_docs and answers using Groq.
     """
     try:
+        # Save user message if conversation_id is present
+        past_messages = []
+        if req.conversation_id:
+            try:
+                await asyncio.to_thread(save_message, req.conversation_id, "user", req.message, None)
+                past_messages = await asyncio.to_thread(load_recent_messages, req.conversation_id, limit=12)
+            except Exception as e:
+                logger.warning(f"Failed to save RAG user message: {e}")
+
         # 1. Retrieve documents (run in threadpool to avoid blocking event loop)
         docs = await asyncio.to_thread(retrieve_documents, req.message)
         
@@ -787,7 +822,10 @@ async def rag_chat_endpoint(req: RagRequest):
         prompt = build_rag_prompt(context, req.message)
         
         # 4. Call LLM (reuse existing Groq logic)
-        messages = [{"role": "user", "content": prompt}]
+        messages = []
+        for r, c in past_messages:
+            messages.append({"role": r, "content": c})
+        messages.append({"role": "user", "content": prompt})
         
         # We use call_preferred_api 'groq' specifically as requested
         response = await call_preferred_api(
@@ -799,14 +837,29 @@ async def rag_chat_endpoint(req: RagRequest):
         
         reply = extract_text_from_model_response(response)
         
+        # Save assistant message if conversation_id is present
+        if req.conversation_id:
+            try:
+                await asyncio.to_thread(save_message, req.conversation_id, "assistant", reply, "groq")
+            except Exception as e:
+                logger.warning(f"Failed to save RAG assistant message: {e}")
+
         return {
             "reply": reply
         }
     except Exception as e:
-        print(f"RAG Error: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"RAG Error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/conversations")
+def list_conversations():
+    return get_all_conversations(limit=100)
+
+
+@app.get("/conversation/{conversation_id}")
+def get_conversation(conversation_id: str):
+    return get_conversation_messages(conversation_id)
 
 
 if __name__ == "__main__":

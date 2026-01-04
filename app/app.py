@@ -16,6 +16,17 @@ import json
 import base64
 import time
 import re
+import sys
+
+# Debug: print the absolute path of the running file
+import os
+print("🔥 RUNNING FILE:", os.path.abspath(__file__))
+
+
+# Add parent directory to sys.path to access 'rag' package
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from rag.retriever import retrieve_documents
+from rag.prompt import build_rag_prompt
 
 # Load environment variables from .env file in the same directory as this script
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
@@ -49,8 +60,8 @@ app = FastAPI(title="HVA Chatbot (FastAPI)", version="0.1")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174"],
-    allow_credentials=False,
+    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:5175"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -94,18 +105,30 @@ def trim_history(history: Optional[List[Message]], max_turns: int = 6) -> List[M
 # simple router: pick model string based on user text
 def pick_model_for_request(text: str) -> str:
     t = text.lower()
-    if any(k in t for k in ["code", "bug", "implement", "refactor", "explain code"]):
+
+    # Code / complex reasoning
+    if any(k in t for k in [
+        "code", "bug", "implement", "refactor",
+        "explain this code", "error", "stack trace"
+    ]):
         return "gemini"
-    if any(k in t for k in ["image", "generate image", "show me", "visual", "picture", "draw", "create", "paint", "sketch", "sunset", "landscape", "portrait"]):
+
+    # Explicit image generation ONLY
+    image_triggers = [
+        "generate image",
+        "create an image",
+        "draw an image",
+        "picture of",
+        "image of",
+        "illustration of",
+        "sketch of",
+        "paint an image"
+    ]
+
+    if any(k in t for k in image_triggers):
         return "hf"
+
     return "groq"
-
-
-# simple code-intent detector (reuse keywords you used before)
-def is_code_intent(text: str) -> bool:
-    t = (text or "").lower()
-    return any(k in t for k in ["code", "implement", "fix", "debug", "bug", "refactor", "write", "function", "script"])
-
 
 
 async def call_groq_api(
@@ -113,8 +136,7 @@ async def call_groq_api(
     max_tokens: int = 800,
     model= "llama-3.3-70b-versatile",
     temperature: float = 0.7,
-    top_p: float = 0.7,
-    stream: bool = False,
+    top_p: float = 0.7
 ) -> Dict[str, Any]:
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
@@ -126,8 +148,7 @@ async def call_groq_api(
         "messages": messages,
         "max_tokens": max_tokens,
         "temperature": temperature,
-        "top_p": top_p,
-        "stream": stream,
+        "top_p": top_p
     }
 
     # remove None values (just in case)
@@ -147,9 +168,8 @@ async def call_gemini_api(
     max_tokens: int = 800,
     model: str = "gemini-2.5-flash",
     temperature: float = 0.7,
-    top_p: float = 0.7,
-    stream: bool = False,
-) -> Dict[str, Any]:
+    top_p: float = 0.7
+    ) -> Dict[str, Any]:
 
     model_name = model or DEFAULT_GEMINI_MODEL
     url = f"{GEMINI_API_URL}/{model_name}:generateContent?key={GEMINI_API_KEY}"
@@ -206,12 +226,7 @@ async def call_gemini_api(
 
 async def call_hf_image_api(
     messages: List[Dict[str, str]],
-    model: str = None,
-    output_format: str = "png",
-    max_tokens: int = 800,
-    temperature: float = 0.7,
-    top_p: float = 0.7,
-    stream: bool = False,
+    model: str = None
 ) -> Dict[str, Any]:
 
     # choose model
@@ -299,6 +314,7 @@ async def call_hf_image_api(
 
         # Check content type to determine if it's an image or JSON error
         content_type = resp.headers.get("content-type", "").lower()
+
         
         if "application/json" in content_type:
             # Might be an error response in JSON format
@@ -325,13 +341,15 @@ async def call_hf_image_api(
             }]
         }
     
+        
+    
 RETRY_STATUS_CODES = {429, 500, 502, 503, 504}
 
 async def call_with_retry(call_fn, retries=3):
     for attempt in range(retries):
         try:
             return await call_fn()
-        except httpx.HTTPStatusError as e:
+        except (httpx.HTTPStatusError, httpx.RequestError) as e:
             status = e.response.status_code if e.response else None
             if status in RETRY_STATUS_CODES:
                 await asyncio.sleep(2 ** attempt)
@@ -355,7 +373,7 @@ async def call_preferred_api(
         elif model_l == "gemini":
             return await call_gemini_api(messages, max_tokens, temperature=temperature, top_p=top_p)
         elif model_l in ("hf", "huggingface"):
-            return await call_hf_image_api(messages, max_tokens=max_tokens)
+            return await call_hf_image_api(messages)
         else:
             raise ValueError(f"Unknown model: {model}")
 
@@ -369,6 +387,9 @@ def extract_text_from_model_response(resp: Dict[str, Any]) -> str:
     - Other common providers (output, text)
     - Fallback to stringified response
     """
+
+    if isinstance(resp, dict) and "artifacts" in resp:
+        raise RuntimeError("Image response passed to text extractor")
 
     if not resp:
         return ""
@@ -437,7 +458,8 @@ GLOBAL RULES (apply unless a request-specific override is provided):
 5. You may give suggestions ONLY when the user explicitly or implicitly invites them (e.g., "what do you think?", "any suggestions?", "help me", "what should I do?", general open-ended questions).
 6. Do not add extra explanations, headings, disclaimers, or examples unless the user asks for them.
 7. Maintain consistent capitalization and polite tone.
-8. Follow strict minimal rules for all other messages. """
+8. Follow strict minimal rules for all other messages.
+9. Can use Emojis sparingly to enhance friendliness, but only when appropriate."""
 
 # per-request override for Gemini when user intent is "code"
 GEMINI_CODE_OVERRIDE = (
@@ -487,19 +509,19 @@ async def stream_response(req: ChatRequest):
     max_tokens = req.max_tokens or 800
 
     # Gemini overrides
-    if model_choice == "gemini" and is_code_intent(req.message):
-        messages.append({"role": "system", "content": GEMINI_CODE_OVERRIDE})
-        temperature = 0.0
-        top_p = 1.0
-        max_tokens = min(max_tokens, 1500)
-    elif model_choice == "gemini":
+    if model_choice == "gemini" and "creative" in req.message.lower():
         messages.append({"role": "system", "content": GEMINI_CREATIVE_OVERRIDE})
         temperature = 0.9
         top_p = 0.95
         max_tokens = req.max_tokens or 1200
-    else:
-        temperature = 0.0
-        top_p = 1.0
+    elif model_choice == "gemini" and any(
+        k in req.message.lower() for k in ["code", "bug", "error", "stack trace"]
+    ):
+        messages.append({"role": "system", "content": GEMINI_CODE_OVERRIDE})
+
+    # Image generation special case
+    if model_choice == "hf":
+        yield f"data: {json.dumps({'type':'error','detail':'Image generation is not supported in chat. Use /generate_image.'})}\n\n"
 
     # ------------------ MAIN FLOW ------------------
     try:
@@ -512,13 +534,16 @@ async def stream_response(req: ChatRequest):
             stream=False,
         )
 
+        if isinstance(response, dict) and "artifacts" in response:
+            raise RuntimeError("Image response reached chat pipeline")
+
         reply = extract_text_from_model_response(response) or ""
 
         if not reply.strip():
             reply = "[DEBUG] Empty response from model."
 
         # --- stream chunks ---
-        chunk_size = 12
+        chunk_size = 64
         accumulated = ""
 
         for i in range(0, len(reply), chunk_size):
@@ -606,88 +631,14 @@ async def chat_endpoint(req: ChatRequest):
         }
     )
 
-# --- Image generation endpoint ---
-def _extract_b64_from_provider_response(resp: Any) -> Optional[str]:
-    """
-    Try multiple shapes to find base64 image string. Returns cleaned base64 (no whitespace) or None.
-    """
-    if not resp:
-        return None
-    # raw string
-    if isinstance(resp, str):
-        s = resp.strip()
-        if s.startswith(("iVBOR", "/9j/")):
-            return "".join(s.split())
-        try:
-            parsed = json.loads(s)
-            return _extract_b64_from_provider_response(parsed)
-        except Exception:
-            return None
-    # httpx Response
-    try:
-        if isinstance(resp, httpx.Response):
-            try:
-                obj = resp.json()
-            except Exception:
-                obj = {"_text": resp.text}
-            return _extract_b64_from_provider_response(obj)
-    except Exception:
-        pass
-    # dict
-    if isinstance(resp, dict):
-        # common keys
-        for key in ("artifacts","image","images","b64_json","base64","b64","data","output"):
-            if key in resp:
-                val = resp[key]
-                if isinstance(val, str) and val.strip().startswith(("iVBOR","/9j/")):
-                    return "".join(val.split())
-                if isinstance(val, list):
-                    for it in val:
-                        candidate = _extract_b64_from_provider_response(it)
-                        if candidate:
-                            return candidate
-                if isinstance(val, dict):
-                    candidate = _extract_b64_from_provider_response(val)
-                    if candidate:
-                        return candidate
-        # special HF/Stability shape: "artifacts": [{"base64": "..."}]
-        artifacts = resp.get("artifacts") or resp.get("outputs") or []
-        if isinstance(artifacts, list):
-            for a in artifacts:
-                if isinstance(a, dict):
-                    # Check for base64 field - HF/Stability returns base64 directly
-                    for b in ("base64","b64","b64_json","data","image"):
-                        b64_val = a.get(b)
-                        if b64_val and isinstance(b64_val, str):
-                            b64_clean = "".join(b64_val.split())
-                            # Check if it looks like base64 (starts with image magic bytes or is long enough)
-                            if b64_clean.startswith(("iVBOR", "/9j/")) or len(b64_clean) > 100:
-                                return b64_clean
-                    # nested search
-                    for v in a.values():
-                        candidate = _extract_b64_from_provider_response(v)
-                        if candidate:
-                            return candidate
-        # fallback nested
-        for v in resp.values():
-            candidate = _extract_b64_from_provider_response(v)
-            if candidate:
-                return candidate
-    # list
-    if isinstance(resp, list):
-        for it in resp:
-            candidate = _extract_b64_from_provider_response(it)
-            if candidate:
-                return candidate
-    return None
-
 @app.post("/generate_image")
+
 async def generate_image(req: ImageGenRequest):
     """
     Generates an image via the configured image provider and saves thumbnail + original.
     Returns a URL to the thumbnail.
     """
-    model_choice = (req.model or "hf").lower()
+    model_choice = "hf"  # For now, only HF is supported for images
     # Build messages for image generation - only use user prompt (no system prompt needed)
     messages = [{"role": "user", "content": req.prompt}]
 
@@ -718,7 +669,7 @@ async def generate_image(req: ImageGenRequest):
         return JSONResponse(status_code=502, content={"error": "upstream_error", "detail": response.get("error")})
 
     # try to extract base64
-    b64 = _extract_b64_from_provider_response(response)
+    b64 = extract_hf_base64(response)
     print(f"[DEBUG] Extracted b64: {b64[:50] if b64 else 'None'}...")
     
     if not b64:
@@ -771,6 +722,22 @@ async def generate_image(req: ImageGenRequest):
     image_url = f"/generated_images/{thumb_name}"
     return {"url": image_url, "meta": {"mime": mime, "orig": orig_name, "thumb": thumb_name, "base64_len": len(b64_clean)}}
 
+# --- Image generation endpoint ---
+def extract_hf_base64(resp: dict) -> Optional[str]:
+    if not isinstance(resp, dict):
+        return None
+
+    artifacts = resp.get("artifacts")
+    if not isinstance(artifacts, list) or not artifacts:
+        return None
+
+    b64 = artifacts[0].get("base64")
+    if isinstance(b64, str) and len(b64) > 100:
+        return "".join(b64.split())
+
+    return None
+
+
 # --- Serve generated image files ---
 @app.get("/generated_images/{filename}")
 async def serve_generated_image(filename: str):
@@ -794,8 +761,54 @@ def cleanup_generated_images(max_age_seconds: int = 24*3600):
         except Exception:
             pass
 
+class RagRequest(BaseModel):
+    message: str
+
+@app.post("/rag/chat")
+async def rag_chat_endpoint(req: RagRequest):
+    """
+    RAG-based chat endpoint.
+    Retrieves info from rag_docs and answers using Groq.
+    """
+    try:
+        # 1. Retrieve documents (run in threadpool to avoid blocking event loop)
+        docs = await asyncio.to_thread(retrieve_documents, req.message)
+        
+        # 2. Build context
+        if not docs:
+            context = "No specific documents found."
+        else:
+            context = "\n\n".join(
+                f"Content: {doc.page_content}"
+                for doc in docs
+            )
+        
+        # 3. Build prompt
+        prompt = build_rag_prompt(context, req.message)
+        
+        # 4. Call LLM (reuse existing Groq logic)
+        messages = [{"role": "user", "content": prompt}]
+        
+        # We use call_preferred_api 'groq' specifically as requested
+        response = await call_preferred_api(
+            model="groq",
+            messages=messages,
+            max_tokens=700,
+            temperature=0.2
+        )
+        
+        reply = extract_text_from_model_response(response)
+        
+        return {
+            "reply": reply
+        }
+    except Exception as e:
+        print(f"RAG Error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app:app", host="0.0.0.0", port=8001, reload=False)
-
+    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)

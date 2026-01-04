@@ -1,7 +1,10 @@
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from loader import load_md_files
+try:
+    from rag.loader import load_md_files
+except ImportError:
+    from loader import load_md_files
 
-def chunk_documents(documents, chunk_size=1000, chunk_overlap=200):
+def chunk_documents(documents, chunk_size=450, chunk_overlap=50):
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunk_size,
         chunk_overlap=chunk_overlap,
@@ -17,8 +20,10 @@ def chunk_documents(documents, chunk_size=1000, chunk_overlap=200):
             chunked_docs.append(chunked_doc)
     return chunked_docs
 
-docs = load_md_files()
-chunked_docs = chunk_documents(docs)
-print(f"Total chunks created: {len(chunked_docs)}")
-print(chunked_docs[0].page_content)
-print(chunked_docs[0].metadata)
+if __name__ == "__main__":
+    docs = load_md_files()
+    chunked_docs = chunk_documents(docs)
+    print(f"Total chunks created: {len(chunked_docs)}")
+    if chunked_docs:
+        print(chunked_docs[0].page_content)
+        print(chunked_docs[0].metadata)

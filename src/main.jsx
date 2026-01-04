@@ -7,6 +7,7 @@ import AuthPage from "./pages/AuthPage";
 import ChatAppPage from "./pages/ChatAppPage";
 import VoiceSessionPage from "./pages/VoiceSessionPage";
 import ImageCreator from "./pages/ImageCreator";
+import ChatFAB from "./components/ChatFAB";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
@@ -18,6 +19,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <Route path="/voice" element={<VoiceSessionPage />} />
         <Route path="/images" element={<ImageCreator />} />
       </Routes>
+      <ChatFAB />
     </BrowserRouter>
   </React.StrictMode>
 );

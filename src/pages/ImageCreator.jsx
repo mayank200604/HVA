@@ -23,7 +23,7 @@ export default function ImageCreator() {
     setPreviewUrl(null);
 
     try {
-      const resp = await fetch("http://localhost:8001/generate_image", {
+      const resp = await fetch("http://localhost:8000/generate_image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -51,7 +51,7 @@ export default function ImageCreator() {
       
       // If url is relative, convert to full URL with base64 if needed
       if (url && url.startsWith("/generated_images/")) {
-        url = `http://localhost:8001${url}`;
+        url = `http://localhost:8000${url}`;
       }
       
       if (!url) throw new Error("No image returned from server");

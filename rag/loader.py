@@ -1,7 +1,7 @@
 import os
 from langchain_community.document_loaders import UnstructuredMarkdownLoader
 
-RAG_DOCS_PATH = "rag_docs"
+RAG_DOCS_PATH = os.path.join(os.path.dirname(__file__), "rag_docs")
 
 def load_md_files():
     documents = []
@@ -18,7 +18,9 @@ def load_md_files():
             documents.extend(docs)
     return documents
 
-docs = load_md_files()
-print(f"Total documents loaded: {len(docs)}")
-print(docs[0].page_content[:300])
-print(docs[0].metadata)
+if __name__ == "__main__":
+    docs = load_md_files()
+    print(f"Total documents loaded: {len(docs)}")
+    if docs:
+        print(docs[0].page_content[:300])
+        print(docs[0].metadata)

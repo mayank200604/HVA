@@ -1,67 +1,99 @@
-import React, { useEffect, useRef } from "react";
+import React, { useRef, useEffect } from 'react';
 
-export default function ParticleSphere({ size = 280 }) {
-  const canvasRef = useRef(null);
+const ParticleSphere = ({ size = 300 }) => {
+    const canvasRef = useRef(null);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
 
-    const particles = [];
-    const count = 420;
-    for (let i = 0; i < count; i++) {
-      const phi = Math.acos(2 * Math.random() - 1);
-      const theta = 2 * Math.PI * Math.random();
-      particles.push({ phi, theta, radius: size * 0.33 });
-    }
+        // Set canvas resolution for HDPI
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = size * dpr;
+        canvas.height = size * dpr;
+        canvas.style.width = `${size}px`;
+        canvas.style.height = `${size}px`;
 
-    let t = 0;
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = size * dpr;
-    canvas.height = size * dpr;
-    canvas.style.width = `${size}px`;
-    canvas.style.height = `${size}px`;
-    ctx.scale(dpr, dpr);
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
 
-    function draw() {
-      t += 0.004;
-      ctx.clearRect(0, 0, size, size);
-      ctx.save();
-      ctx.translate(size / 2, size / 2);
+        // Particles config
+        const particleCount = 200;
+        const particles = [];
+        let rotation = 0;
 
-      for (const p of particles) {
-        const theta = p.theta + t * 2;
-        const phi = p.phi + Math.sin(t * 2 + p.theta) * 0.05;
+        // Init particles
+        for (let i = 0; i < particleCount; i++) {
+            const theta = Math.random() * 2 * Math.PI;
+            const phi = Math.acos((Math.random() * 2) - 1);
+            const radius = (size / 2.5); // Slightly smaller than container
 
-        const r = p.radius;
-        const x = r * Math.sin(phi) * Math.cos(theta);
-        const y = r * Math.sin(phi) * Math.sin(theta);
-        const z = r * Math.cos(phi);
+            particles.push({
+                x: radius * Math.sin(phi) * Math.cos(theta),
+                y: radius * Math.sin(phi) * Math.sin(theta),
+                z: radius * Math.cos(phi),
+                baseX: radius * Math.sin(phi) * Math.cos(theta),
+                baseY: radius * Math.sin(phi) * Math.sin(theta),
+                baseZ: radius * Math.cos(phi),
+                size: Math.random() * 1.5 + 0.5,
+                color: Math.random() > 0.5 ? '#22d3ee' : '#a78bfa' // Cyan or Violet
+            });
+        }
 
-        const scale = 0.7 + (z / (r * 2));
-        const alpha = 0.3 + scale * 0.7;
+        let animationFrameId;
 
-        ctx.beginPath();
-        ctx.arc(x, y, 1.1 + scale * 1.2, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(163, 230, 255, ${alpha})`;
-        ctx.fill();
-      }
+        const animate = () => {
+            ctx.clearRect(0, 0, size, size);
 
-      ctx.restore();
-      requestAnimationFrame(draw);
-    }
+            const centerX = size / 2;
+            const centerY = size / 2;
 
-    draw();
-  }, [size]);
+            rotation += 0.003;
 
-  return (
-    <div className="relative flex items-center justify-center">
-      <canvas
-        ref={canvasRef}
-        className="rounded-full bg-slate-950/40"
-      />
-      <div className="pointer-events-none absolute inset-6 rounded-full bg-[radial-gradient(circle,_#22d3ee22,_transparent_70%)] blur-xl" />
-    </div>
-  );
-}
+            particles.forEach(p => {
+                // Rotate around Y axis
+                const cosY = Math.cos(rotation);
+                const sinY = Math.sin(rotation);
+
+                // Rotate around X axis (slight tilt)
+                const tilt = 0.2;
+                const cosX = Math.cos(tilt);
+                const sinX = Math.sin(tilt);
+
+                // 3D Rotation Calculation
+                // 1. Rotate Y
+                let x1 = p.baseX * cosY - p.baseZ * sinY;
+                let z1 = p.baseZ * cosY + p.baseX * sinY;
+
+                // 2. Rotate X (Tilt)
+                let y2 = p.baseY * cosX - z1 * sinX;
+                let z2 = z1 * cosX + p.baseY * sinX;
+
+                // Simple projection
+                const scale = 250 / (250 + z2); // Perspective
+                const x2d = x1 * scale + centerX;
+                const y2d = y2 * scale + centerY;
+
+                // Draw particle
+                ctx.beginPath();
+                const alpha = Math.max(0.1, (z2 + size / 2) / size); // Depth-based opacity
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = alpha;
+                ctx.arc(x2d, y2d, p.size * scale, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            animationFrameId = requestAnimationFrame(animate);
+        };
+
+        animate();
+
+        return () => {
+            cancelAnimationFrame(animationFrameId);
+        };
+    }, [size]);
+
+    return <canvas ref={canvasRef} />;
+};
+
+export default ParticleSphere;

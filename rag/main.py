@@ -1,20 +1,26 @@
 from loader import load_md_files
 from chunker import chunk_documents
-from embeddings import get_embeddings
-from vectordb import create_vectorstore
+from embeddings import get_embedding_model
+from langchain_community.vectorstores import Chroma
+
+CHROMA_PATH = "chroma_db"
 
 
 def ingest():
     docs = load_md_files()
-    chunked_docs = chunk_documents(docs)
-    embedded_docs, embedding_model = get_embeddings(chunked_docs)
-    vectorstore = create_vectorstore(
-        embedded_docs,
-        embedding_model=embedding_model
+    chunks = chunk_documents(docs)
+    embedding = get_embedding_model()
+
+    vectorstore = Chroma.from_documents(
+        documents=chunks,
+        embedding=embedding,
+        persist_directory=CHROMA_PATH
     )
-    print("Ingestion complete.")
-    print(f"Ingested {len(embedded_docs)} chunks into ChromaDB")
+
+    vectorstore.persist()
+    print(f"Ingested {len(chunks)} chunks into ChromaDB")
 
 
 if __name__ == "__main__":
     ingest()
+    print("Ingestion complete.")

@@ -18,6 +18,9 @@ import re
 import logging
 import sys
 
+# Add parent directory to sys.path to access 'rag' package
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -39,8 +42,6 @@ logger.info(f"🔥 RUNNING FILE: {os.path.abspath(__file__)}")
 
 init_db()
 
-# Add parent directory to sys.path to access 'rag' package
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Load environment variables from .env file in the same directory as this script
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
@@ -104,6 +105,15 @@ class ImageGenRequest(BaseModel):
 def save_file_sync(path: str, data: bytes):
     with open(path, "wb") as f:
         f.write(data)
+
+async def safe_save_message(conversation_id: str, role: str, content: str, model: Optional[str] = None):
+    """Safely save message to DB without blocking, logging errors instead of raising."""
+    if not conversation_id:
+        return
+    try:
+        await asyncio.to_thread(save_message, conversation_id, role, content, model)
+    except Exception as e:
+        logger.warning(f"Failed to save {role} message: {e}")
 # simple router: pick model string based on user text
 def pick_model_for_request(text: str) -> str:
     t = text.lower()
@@ -492,12 +502,13 @@ async def stream_response(req: ChatRequest):
     # --- 1️⃣ Handle conversation ID ---
     conversation_id = req.conversation_id
     if not conversation_id:
-        # Create a new conversation
         conversation_id = str(uuid.uuid4())
-        try:
-            create_conversation(conversation_id)
-        except Exception as e:
-            logger.warning(f"Failed to create conversation: {e}")
+
+    # Ensure conversation exists in DB
+    try:
+        await asyncio.to_thread(create_conversation, conversation_id)
+    except Exception as e:
+        logger.warning(f"Failed to ensure conversation exists: {e}")
     
     # --- 2️⃣ Load recent messages from database ---
     past_messages = load_recent_messages(conversation_id, limit=12)
@@ -536,10 +547,7 @@ async def stream_response(req: ChatRequest):
     # ------------------ MAIN FLOW ------------------
     try:
         # --- 4️⃣ Save user message to database ---
-        try:
-            await asyncio.to_thread(save_message, conversation_id, "user", req.message, None)
-        except Exception as e:
-            logger.warning(f"Failed to save user message: {e}")
+        await safe_save_message(conversation_id, "user", req.message, None)
         
         response = await call_preferred_api(
             model_choice,
@@ -559,10 +567,7 @@ async def stream_response(req: ChatRequest):
             reply = "[DEBUG] Empty response from model."
 
         # --- 5️⃣ Save assistant reply to database ---
-        try:
-            await asyncio.to_thread(save_message, conversation_id, "assistant", reply, model_choice)
-        except Exception as e:
-            logger.warning(f"Failed to save assistant message: {e}")
+        await safe_save_message(conversation_id, "assistant", reply, model_choice)
 
         # --- stream chunks ---
         chunk_size = 64
@@ -614,10 +619,7 @@ async def stream_response(req: ChatRequest):
                 reply = extract_text_from_model_response(response) or "[DEBUG] Empty fallback response."
 
                 # --- Save fallback response to database ---
-                try:
-                    await asyncio.to_thread(save_message, conversation_id, "assistant", reply, "groq")
-                except Exception as e:
-                    logger.warning(f"Failed to save fallback message: {e}")
+                await safe_save_message(conversation_id, "assistant", reply, "groq")
 
                 chunk_size = 12
                 accumulated = ""
@@ -645,13 +647,14 @@ async def stream_response(req: ChatRequest):
             except Exception:
                 yield f"data: {json.dumps({'type':'error','detail':'gemini fallback failed'})}\n\n"
         else:
-            yield f"data: {json.dumps({'type':'error','detail': body})}\n\n"
+            yield f"data: {json.dumps({'type':'error','detail':'Service is temporarily unavailable (429/5xx). Please try again later.'})}\n\n"
 
     except httpx.RequestError as e:
         yield f"data: {json.dumps({'type':'error','detail': str(e)})}\n\n"
 
     except Exception as e:
-        yield f"data: {json.dumps({'type':'error','detail': str(e)})}\n\n"
+        logger.error(f"Stream error: {e}", exc_info=True)
+        yield f"data: {json.dumps({'type':'error','detail':'An internal error occurred.'})}\n\n"
 
 
 # --- Route Handlers ---
@@ -797,14 +800,24 @@ async def rag_chat_endpoint(req: RagRequest):
     Retrieves info from rag_docs and answers using Groq.
     """
     try:
-        # Save user message if conversation_id is present
+        # Handle conversation ID
+        conv_id = req.conversation_id
+        if not conv_id:
+            conv_id = f"rag-{uuid.uuid4()}"
+
+        # Ensure conversation exists
+        try:
+            await asyncio.to_thread(create_conversation, conv_id)
+        except Exception as e:
+            logger.warning(f"Failed to ensure RAG conversation exists: {e}")
+
+        # Save user message
         past_messages = []
-        if req.conversation_id:
-            try:
-                await asyncio.to_thread(save_message, req.conversation_id, "user", req.message, None)
-                past_messages = await asyncio.to_thread(load_recent_messages, req.conversation_id, limit=12)
-            except Exception as e:
-                logger.warning(f"Failed to save RAG user message: {e}")
+        await safe_save_message(conv_id, "user", req.message, None)
+        try:
+            past_messages = await asyncio.to_thread(load_recent_messages, conv_id, limit=12)
+        except Exception as e:
+            logger.warning(f"Failed to load RAG history: {e}")
 
         # 1. Retrieve documents (run in threadpool to avoid blocking event loop)
         docs = await asyncio.to_thread(retrieve_documents, req.message)
@@ -837,19 +850,16 @@ async def rag_chat_endpoint(req: RagRequest):
         
         reply = extract_text_from_model_response(response)
         
-        # Save assistant message if conversation_id is present
-        if req.conversation_id:
-            try:
-                await asyncio.to_thread(save_message, req.conversation_id, "assistant", reply, "groq")
-            except Exception as e:
-                logger.warning(f"Failed to save RAG assistant message: {e}")
+        # Save assistant message
+        await safe_save_message(conv_id, "assistant", reply, "groq")
 
         return {
-            "reply": reply
+            "reply": reply,
+            "conversation_id": conv_id
         }
     except Exception as e:
         logger.error(f"RAG Error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal server error occurred while processing your request.")
 
 
 @app.get("/conversations")
@@ -864,4 +874,4 @@ def get_conversation(conversation_id: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("app:app", host="0.0.0.0", port=8000)

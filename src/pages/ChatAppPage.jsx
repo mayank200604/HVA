@@ -71,6 +71,7 @@ export default function ChatAppPage() {
 
   const [chatHistory, setChatHistory] = useState([]);
   const [currentChatId, setCurrentChatId] = useState(null);
+  const API_BASE_URL = "http://localhost:8000";
   const [showProfile, setShowProfile] = useState(false);
   const [showImages, setShowImages] = useState(false);
   const [storedImages, setStoredImages] = useState([]);
@@ -96,6 +97,7 @@ export default function ChatAppPage() {
           if (chat) {
             setCurrentChatId(chatId);
             setMessages(chat.messages || []);
+            currentBackendIdRef.current = chat.conversationId || null;
           } else {
             localStorage.removeItem("currentChatId");
           }
@@ -107,6 +109,46 @@ export default function ChatAppPage() {
       setIsHydrated(true); // Mark hydration complete after load
     }
   }, []);
+
+  // --- 🔄 Sync with Backend History ---
+  useEffect(() => {
+    if (!isHydrated) return;
+
+    const syncHistory = async () => {
+      try {
+        const resp = await fetch(`${API_BASE_URL}/conversations`);
+        if (!resp.ok) return;
+        const backendConversations = await resp.json();
+
+        setChatHistory(prev => {
+          const updated = [...prev];
+          let changed = false;
+
+          backendConversations.forEach(bc => {
+            // Check if this backend conversation is already in our history
+            const exists = updated.find(c => c.conversationId === bc.id);
+            if (!exists) {
+              // Add a new "ghost" chat that will be loaded on demand
+              updated.push({
+                id: `bk-${bc.id}`, // Unique local ID for backend chats
+                title: `Chat ${bc.created_at.split('T')[0]}`,
+                messages: [], // Will load on click
+                conversationId: bc.id,
+                created_at: bc.created_at
+              });
+              changed = true;
+            }
+          });
+
+          return changed ? updated.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)) : prev;
+        });
+      } catch (err) {
+        console.error("Failed to sync backend history:", err);
+      }
+    };
+
+    syncHistory();
+  }, [isHydrated]);
 
   // Persist chat history to localStorage whenever it changes
   useEffect(() => {
@@ -132,6 +174,7 @@ export default function ChatAppPage() {
   const abortControllerRef = useRef(null);
   const messagesEndRef = useRef(null);
   const lastImageIdRef = useRef(null);
+  const currentBackendIdRef = useRef(null);
 
   // Load stored images from localStorage
   const loadStoredImages = () => {
@@ -198,8 +241,10 @@ export default function ChatAppPage() {
         const targetChat = chatHistory.find(c => c.id === chatIdToUse);
         if (targetChat) {
           setMessages([...targetChat.messages, imageMessage]);
+          currentBackendIdRef.current = targetChat.conversationId || null;
         } else {
           setMessages([imageMessage]);
+          currentBackendIdRef.current = null;
         }
       }
     }
@@ -303,13 +348,11 @@ export default function ChatAppPage() {
     setIsTyping(true);
     setDebugError(null);
 
-    // Get backend conversation ID from current chat
-    const currentChat = chatHistory.find(c => c.id === chatIdToUse);
-    const backendConversationId = currentChat?.conversationId || null;
+    const backendConversationId = currentBackendIdRef.current;
 
     const requestBody = {
       message: newMsg.text,
-      conversation_id: backendConversationId,  // Send backend conversation_id instead of history
+      conversation_id: backendConversationId,
       max_tokens: 800,
     };
 
@@ -318,7 +361,7 @@ export default function ChatAppPage() {
     const signal = controller.signal;
 
     try {
-      const resp = await fetch("http://localhost:8000/chat", {
+      const resp = await fetch(`${API_BASE_URL}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody),
@@ -366,6 +409,7 @@ export default function ChatAppPage() {
 
         // --- Update backend conversation ID if received ---
         if (event.conversation_id) {
+          currentBackendIdRef.current = event.conversation_id;
           setChatHistory((prev) =>
             prev.map((chat) =>
               chat.id === chatIdToUse ? { ...chat, conversationId: event.conversation_id } : chat
@@ -490,20 +534,53 @@ export default function ChatAppPage() {
       abortControllerRef.current = null;
     }
     setCurrentChatId(null);
+    currentBackendIdRef.current = null;
     setMessages([]);
     setInput("");
     setIsTyping(false);
   };
 
   // Load an old chat
-  const loadChat = (chat) => {
+  const loadChat = async (chat) => {
     // abort any active stream
     if (abortControllerRef.current) {
       try { abortControllerRef.current.abort(); } catch { }
       abortControllerRef.current = null;
     }
+
     setCurrentChatId(chat.id);
-    setMessages(chat.messages);
+    currentBackendIdRef.current = chat.conversationId || null;
+
+    // If chat has no messages but has a backend ID, fetch them
+    if ((!chat.messages || chat.messages.length === 0) && chat.conversationId) {
+      setIsTyping(true);
+      try {
+        const resp = await fetch(`${API_BASE_URL}/conversation/${chat.conversationId}`);
+        if (resp.ok) {
+          const history = await resp.json();
+          // Map backend messages {role, content} to frontend messages {role, text}
+          const mappedMessages = history.map((m, idx) => ({
+            id: `bk-msg-${idx}-${Date.now()}`,
+            role: m.role,
+            text: m.content,
+            created_at: m.created_at
+          }));
+
+          setMessages(mappedMessages);
+
+          // Update chat history state with these messages
+          setChatHistory(prev => prev.map(c =>
+            c.id === chat.id ? { ...c, messages: mappedMessages, title: mappedMessages[0]?.text?.slice(0, 30) || c.title } : c
+          ));
+        }
+      } catch (err) {
+        console.error("Failed to fetch conversation messages:", err);
+      } finally {
+        setIsTyping(false);
+      }
+    } else {
+      setMessages(chat.messages || []);
+    }
   };
 
   const handleKeyDown = (e) => {

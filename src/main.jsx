@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import "./index.css";
 import LandingPage from "./pages/Landingpage";
-import AuthPage from "./pages/AuthPage";
+import AuthPage from "./pages/Authpage";
 import ChatAppPage from "./pages/ChatAppPage";
 import VoiceSessionPage from "./pages/VoiceSessionPage";
 import ImageCreator from "./pages/ImageCreator";

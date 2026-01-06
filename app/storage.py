@@ -107,6 +107,17 @@ def get_conversation_messages(conversation_id):
         for r in rows
     ]
 
+def delete_conversation(conversation_id: str):
+    conn = get_conn()
+    cur = conn.cursor()
+    # Delete messages associated with the conversation
+    cur.execute("DELETE FROM messages WHERE conversation_id = ?", (conversation_id,))
+    # Delete the conversation itself
+    cur.execute("DELETE FROM conversations WHERE id = ?", (conversation_id,))
+    conn.commit()
+    conn.close()
+
+
 def get_conn():
     conn = sqlite3.connect(DB_PATH, timeout=30, check_same_thread=False)
     conn.execute("PRAGMA journal_mode=WAL;")

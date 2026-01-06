@@ -77,6 +77,8 @@ export default function ChatAppPage() {
   const [storedImages, setStoredImages] = useState([]);
   const [selectedImage, setSelectedImage] = useState(null); // State for image modal
   const [isHydrated, setIsHydrated] = useState(false); // Hydration flag to prevent race condition
+  const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, chat: null });
+  const [copyFeedback, setCopyFeedback] = useState({ visible: false, message: "" });
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -255,8 +257,66 @@ export default function ChatAppPage() {
     loadStoredImages();
     const handleFocus = () => loadStoredImages();
     window.addEventListener("focus", handleFocus);
-    return () => window.removeEventListener("focus", handleFocus);
+
+    // Global click listener to close context menu
+    const handleGlobalClick = () => setContextMenu({ visible: false, x: 0, y: 0, chat: null });
+    window.addEventListener("click", handleGlobalClick);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("click", handleGlobalClick);
+    };
   }, []);
+
+  const handleContextMenu = (e, chat) => {
+    e.preventDefault();
+    setContextMenu({
+      visible: true,
+      x: e.pageX,
+      y: e.pageY,
+      chat: chat
+    });
+  };
+
+  const deleteChat = async (chatToDelete) => {
+    if (!chatToDelete) return;
+
+    const conversationId = chatToDelete.conversationId || (chatToDelete.id.toString().startsWith('bk-') ? chatToDelete.id.replace('bk-', '') : null);
+
+    if (conversationId) {
+      try {
+        const resp = await fetch(`${API_BASE_URL}/conversation/${conversationId}`, {
+          method: 'DELETE'
+        });
+        if (!resp.ok) console.error("Backend delete failed");
+      } catch (err) {
+        console.error("Error deleting from backend:", err);
+      }
+    }
+
+    // Update local state
+    setChatHistory(prev => prev.filter(c => c.id !== chatToDelete.id));
+
+    // If deleted chat was current, reset
+    if (currentChatId === chatToDelete.id) {
+      handleNewChat();
+    }
+
+    setContextMenu({ visible: false, x: 0, y: 0, chat: null });
+    showFeedback("Chat deleted");
+  };
+
+  const copyToClipboard = (text) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      showFeedback("Copied to clipboard");
+    });
+  };
+
+  const showFeedback = (msg) => {
+    setCopyFeedback({ visible: true, message: msg });
+    setTimeout(() => setCopyFeedback({ visible: false, message: "" }), 2000);
+  };
 
   // Handle navigation state when coming back from image creator
   useEffect(() => {
@@ -634,7 +694,8 @@ export default function ChatAppPage() {
                   <button
                     key={chat.id}
                     onClick={() => loadChat(chat)}
-                    className={`w-full rounded-lg px-3 py-2.5 text-left text-sm transition-colors group ${chat.id === currentChatId
+                    onContextMenu={(e) => handleContextMenu(e, chat)}
+                    className={`w-full rounded-lg px-3 py-2.5 text-left text-sm transition-colors group relative ${chat.id === currentChatId
                       ? "bg-slate-800 text-slate-100"
                       : "text-slate-300 hover:bg-slate-800/50"
                       }`}
@@ -749,11 +810,27 @@ export default function ChatAppPage() {
               className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-2xl rounded-2xl px-4 py-3 text-sm shadow-md transition-all duration-300 ${m.role === "user"
+                className={`max-w-2xl rounded-2xl px-4 py-3 text-sm shadow-md transition-all duration-300 relative group ${m.role === "user"
                   ? "bg-cyan-500 text-black shadow-cyan-500/20 hover:shadow-lg"
                   : "bg-slate-900 text-slate-100 border border-slate-800 whitespace-pre-wrap break-words shadow-slate-950/50 hover:shadow-lg hover:border-slate-700"
                   }`}
               >
+                {/* Copy Action Icon */}
+                <div className={`absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity`}>
+                  <button
+                    onClick={() => copyToClipboard(m.imageUrl || m.text)}
+                    className={`p-1.5 rounded-lg border backdrop-blur-sm transition-colors ${m.role === 'user'
+                        ? 'bg-cyan-400/20 border-cyan-400/40 hover:bg-cyan-400/40 text-black'
+                        : 'bg-slate-800/80 border-slate-700 hover:bg-slate-700 text-slate-400 hover:text-slate-200'
+                      }`}
+                    title="Copy"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                    </svg>
+                  </button>
+                </div>
+
                 {m.imageUrl ? (
                   <div>
                     <img src={m.imageUrl} alt="Generated content" className="max-w-xs rounded-lg mb-2" />
@@ -842,6 +919,33 @@ export default function ChatAppPage() {
         </form>
 
       </main>
+
+      {/* Context Menu for Chat History */}
+      {contextMenu.visible && (
+        <div
+          className="fixed z-[999] bg-slate-900 border border-slate-700 rounded-xl shadow-2xl py-1.5 w-40 backdrop-blur-md"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => deleteChat(contextMenu.chat)}
+            className="w-full text-left px-4 py-2.5 text-sm text-rose-400 hover:bg-rose-500/10 flex items-center gap-3 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            <span>Delete Chat</span>
+          </button>
+        </div>
+      )}
+
+      {/* Action Feedback (Copy/Delete toast) */}
+      {copyFeedback.visible && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 px-6 py-3 bg-slate-800 border border-slate-700 text-slate-100 rounded-full shadow-2xl z-[1000] flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
+          <span className="text-sm font-medium">{copyFeedback.message}</span>
+        </div>
+      )}
 
       {/* Image Modal */}
       {selectedImage && (

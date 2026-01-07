@@ -32,7 +32,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("hva_app")
 
-from storage import init_db, create_conversation, save_message, load_recent_messages, get_all_conversations, get_conversation_messages, delete_conversation
+from storage import init_db, create_conversation, save_message, load_recent_messages, get_all_conversations, get_conversation_messages
 from rag.retriever import retrieve_documents
 from rag.prompt import build_rag_prompt
 
@@ -875,14 +875,3 @@ def get_conversation(conversation_id: str):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app:app", host="0.0.0.0", port=8000)
-@app.delete("/conversation/{conversation_id}")
-async def delete_conversation_endpoint(conversation_id: str):
-    """
-    Deletes a conversation and all its messages.
-    """
-    try:
-        await asyncio.to_thread(delete_conversation, conversation_id)
-        return {"status": "success", "message": f"Conversation {conversation_id} deleted."}
-    except Exception as e:
-        logger.error(f"Error deleting conversation: {e}")
-        raise HTTPException(status_code=500, detail=str(e))

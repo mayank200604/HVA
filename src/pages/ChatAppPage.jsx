@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import ParticleSphere from "../shared/ParticleSphere";
 
 // Simple markdown to JSX converter for basic rendering
 const renderMarkdown = (text) => {
@@ -804,6 +805,18 @@ export default function ChatAppPage() {
 
         {/* Messages */}
         <section className={`flex-1 space-y-4 overflow-y-auto px-3 py-4 md:px-10 md:py-8 ${debugError ? "pt-16" : ""}`}>
+          {messages.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full">
+              <div className="relative flex items-center justify-center transition-all duration-700 hover:scale-[1.02]">
+                <div className="pointer-events-none absolute inset-8 rounded-full bg-[radial-gradient(circle,_#06b6d422,_transparent_70%)] blur-2xl animate-pulse" />
+                <ParticleSphere size={380} showBorder={false} />
+              </div>
+              <div className="mt-8 text-center space-y-2">
+                <h2 className="text-xl font-medium bg-gradient-to-r from-cyan-400 to-violet-400 bg-clip-text text-transparent">How can I assist you today?</h2>
+                <p className="text-sm text-slate-500 max-w-xs mx-auto">Start a conversation with your Hybrid Voice Assistant</p>
+              </div>
+            </div>
+          )}
           {messages.map((m) => (
             <div
               key={m.id}
@@ -820,8 +833,8 @@ export default function ChatAppPage() {
                   <button
                     onClick={() => copyToClipboard(m.imageUrl || m.text)}
                     className={`p-1.5 rounded-lg border backdrop-blur-sm transition-colors ${m.role === 'user'
-                        ? 'bg-cyan-400/20 border-cyan-400/40 hover:bg-cyan-400/40 text-black'
-                        : 'bg-slate-800/80 border-slate-700 hover:bg-slate-700 text-slate-400 hover:text-slate-200'
+                      ? 'bg-cyan-400/20 border-cyan-400/40 hover:bg-cyan-400/40 text-black'
+                      : 'bg-slate-800/80 border-slate-700 hover:bg-slate-700 text-slate-400 hover:text-slate-200'
                       }`}
                     title="Copy"
                   >
@@ -884,6 +897,19 @@ export default function ChatAppPage() {
               {input.length > 0 && (
                 <span className="text-xs text-slate-400 whitespace-nowrap">{input.length}</span>
               )}
+              <button
+                type="button"
+                onClick={() => navigate("/voice")}
+                className={`flex h-9 w-9 items-center justify-center rounded-full border-2 transition-all duration-200 ${isFocused
+                  ? "border-violet-400 bg-violet-500/30 text-violet-200 hover:bg-violet-500/40"
+                  : "border-violet-400/60 bg-violet-500/20 text-violet-300 hover:bg-violet-500/30"
+                  }`}
+                title="Voice preview"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
+              </button>
               <button
                 type="button"
                 onClick={() => navigate("/images", { state: { currentChatId: currentChatId } })}

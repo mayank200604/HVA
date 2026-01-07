@@ -7,9 +7,12 @@
 }
 
 @keyframes float-card {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0px) translateZ(0);
   }
+
   50% {
     transform: translateY(-10px) translateZ(0);
   }
@@ -42,11 +45,9 @@
   width: 260px;
   height: 260px;
   border-radius: 9999px;
-  background: radial-gradient(
-    circle,
-    rgba(56, 189, 248, 0.18),
-    transparent 65%
-  );
+  background: radial-gradient(circle,
+      rgba(56, 189, 248, 0.18),
+      transparent 65%);
   filter: blur(38px);
   transition: transform 0.12s ease-out;
   pointer-events: none;
@@ -77,6 +78,7 @@
     opacity: 0;
     transform: translateX(-12px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -88,6 +90,7 @@
     opacity: 0;
     transform: translateX(12px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -98,6 +101,7 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -113,4 +117,259 @@
 
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out;
+}
+
+/* ---------------------------------------------
+   DYNAMIC LANDING PAGE ANIMATIONS
+   --------------------------------------------- */
+
+/* Staggered card fade-in */
+@keyframes cardFadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.card-stagger-1 {
+  animation: cardFadeInUp 0.6s ease-out 0.1s both;
+}
+
+.card-stagger-2 {
+  animation: cardFadeInUp 0.6s ease-out 0.2s both;
+}
+
+.card-stagger-3 {
+  animation: cardFadeInUp 0.6s ease-out 0.3s both;
+}
+
+.card-stagger-4 {
+  animation: cardFadeInUp 0.6s ease-out 0.4s both;
+}
+
+.card-stagger-5 {
+  animation: cardFadeInUp 0.6s ease-out 0.5s both;
+}
+
+.card-stagger-6 {
+  animation: cardFadeInUp 0.6s ease-out 0.6s both;
+}
+
+/* Floating badge animation */
+@keyframes floatBadge {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.float-badge {
+  animation: floatBadge 3s ease-in-out infinite;
+}
+
+/* Shimmer effect for tech badges */
+@keyframes shimmer {
+  0% {
+    background-position: -200% center;
+  }
+
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.shimmer-badge {
+  background: linear-gradient(90deg,
+      rgba(15, 23, 42, 0.8) 0%,
+      rgba(34, 211, 238, 0.2) 50%,
+      rgba(15, 23, 42, 0.8) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 3s linear infinite;
+}
+
+/* Glow pulse for phase indicator */
+@keyframes glowPulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+  }
+
+  50% {
+    box-shadow: 0 0 30px rgba(16, 185, 129, 0.6);
+  }
+}
+
+.glow-pulse {
+  animation: glowPulse 2s ease-in-out infinite;
+}
+
+/* Hover lift effect */
+.hover-lift {
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.hover-lift:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+/* Icon bounce on hover */
+@keyframes iconBounce {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.2);
+  }
+}
+
+.icon-bounce:hover {
+  animation: iconBounce 0.5s ease-in-out;
+}
+
+/* ---------------------------------------------
+   ORBITAL NODES AROUND SPHERE
+   --------------------------------------------- */
+
+/* Slow orbital animations for capability nodes */
+/* Nodes are evenly distributed at 72° intervals (360° / 5 nodes) */
+@keyframes orbit1 {
+  0% {
+    transform: rotate(0deg) translateX(270px) rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg) translateX(270px) rotate(-360deg);
+  }
+}
+
+@keyframes orbit2 {
+  0% {
+    transform: rotate(72deg) translateX(270px) rotate(-72deg);
+  }
+
+  100% {
+    transform: rotate(432deg) translateX(270px) rotate(-432deg);
+  }
+}
+
+@keyframes orbit3 {
+  0% {
+    transform: rotate(144deg) translateX(270px) rotate(-144deg);
+  }
+
+  100% {
+    transform: rotate(504deg) translateX(270px) rotate(-504deg);
+  }
+}
+
+@keyframes orbit4 {
+  0% {
+    transform: rotate(216deg) translateX(270px) rotate(-216deg);
+  }
+
+  100% {
+    transform: rotate(576deg) translateX(270px) rotate(-576deg);
+  }
+}
+
+@keyframes orbit5 {
+  0% {
+    transform: rotate(288deg) translateX(270px) rotate(-288deg);
+  }
+
+  100% {
+    transform: rotate(648deg) translateX(270px) rotate(-648deg);
+  }
+}
+
+.orbit-node-1 {
+  animation: orbit1 25s linear infinite;
+}
+
+.orbit-node-2 {
+  animation: orbit2 30s linear infinite;
+}
+
+.orbit-node-3 {
+  animation: orbit3 28s linear infinite;
+}
+
+.orbit-node-4 {
+  animation: orbit4 32s linear infinite;
+}
+
+.orbit-node-5 {
+  animation: orbit5 27s linear infinite;
+}
+
+/* Subtle glow on hover for orbit nodes */
+.orbit-node {
+  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.orbit-node:hover {
+  transform: scale(1.15);
+  opacity: 1 !important;
+}
+
+.orbit-node:hover .orbit-tooltip {
+  opacity: 1;
+  transform: translateY(-8px);
+}
+
+.orbit-tooltip {
+  opacity: 0;
+  transform: translateY(0);
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+/* ---------------------------------------------
+   VOICE PREVIEW ANIMATIONS
+   --------------------------------------------- */
+
+/* Slow continuous rotation for sphere container */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 60s linear infinite;
+}
+
+/* Counter-rotation to keep content upright */
+@keyframes reverse-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+.animate-reverse-spin {
+  animation: reverse-spin 60s linear infinite;
 }

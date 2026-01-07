@@ -143,7 +143,7 @@ export default function LandingPage() {
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-slate-700/80 bg-slate-950/70 px-3 py-1 text-[10px] text-slate-300">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Groq · DeepSeek · Whisper · Coqui · ChromaDB</span>
+              <span>Groq  · Gemini  · Hugging Face  · ChromaDB</span>
             </div>
 
             <h1 className="mt-4 text-3xl font-semibold leading-tight tracking-tight md:text-5xl lg:text-6xl">

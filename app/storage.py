@@ -3,37 +3,70 @@ import sqlite3
 from datetime import datetime
 import os
 
+# -----------------------------
+# Database path
+# -----------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "chat.db")
 print("USING DB:", DB_PATH)
 
+
+# -----------------------------
+# Connection helper
+# -----------------------------
+def get_conn():
+    conn = sqlite3.connect(DB_PATH, timeout=30, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA busy_timeout = 30000;")
+    conn.execute("PRAGMA foreign_keys = ON;")
+    return conn
+
+
+# -----------------------------
+# Initialize DB
+# -----------------------------
 def init_db():
     conn = get_conn()
     cur = conn.cursor()
 
+    # Conversations table
     cur.execute("""
     CREATE TABLE IF NOT EXISTS conversations (
         id TEXT PRIMARY KEY,
-        created_at TEXT
+        created_at TEXT NOT NULL
     )
     """)
 
+    # Messages table
     cur.execute("""
     CREATE TABLE IF NOT EXISTS messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        conversation_id TEXT,
-        role TEXT,
-        content TEXT,
+        conversation_id TEXT NOT NULL,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
         model TEXT,
-        created_at TEXT
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (conversation_id)
+            REFERENCES conversations(id)
+            ON DELETE CASCADE
     )
     """)
 
-    # Data Migration: Backfill conversations table from existing messages
-    # This ensures consistency if messages exist without conversation metadata
+    # Helpful index for performance
+    cur.execute("""
+    CREATE INDEX IF NOT EXISTS idx_messages_conversation_id
+    ON messages(conversation_id)
+    """)
+
+    # -----------------------------
+    # Migration / Backfill
+    # -----------------------------
     cur.execute("""
     INSERT OR IGNORE INTO conversations (id, created_at)
-    SELECT DISTINCT conversation_id, MIN(created_at)
+    SELECT
+        conversation_id,
+        MIN(created_at)
     FROM messages
     WHERE conversation_id IS NOT NULL
     GROUP BY conversation_id
@@ -42,26 +75,85 @@ def init_db():
     conn.commit()
     conn.close()
 
+
+# -----------------------------
+# Conversation helpers
+# -----------------------------
 def create_conversation(conversation_id: str):
     conn = get_conn()
     cur = conn.cursor()
+
     cur.execute(
-        "INSERT OR IGNORE INTO conversations (id, created_at) VALUES (?, ?)",
+        """
+        INSERT OR IGNORE INTO conversations (id, created_at)
+        VALUES (?, ?)
+        """,
         (conversation_id, datetime.utcnow().isoformat())
     )
+
     conn.commit()
     conn.close()
 
 
+def get_all_conversations(limit=100, offset=0):
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute(
+        """
+        SELECT id, created_at
+        FROM conversations
+        ORDER BY created_at DESC
+        LIMIT ? OFFSET ?
+        """,
+        (limit, offset)
+    )
+
+    rows = cur.fetchall()
+    conn.close()
+
+    return [
+        {"id": row["id"], "created_at": row["created_at"]}
+        for row in rows
+    ]
+
+
+def delete_conversation(conversation_id: str):
+    conn = get_conn()
+    cur = conn.cursor()
+
+    # Messages will be deleted automatically due to CASCADE
+    cur.execute(
+        "DELETE FROM conversations WHERE id = ?",
+        (conversation_id,)
+    )
+
+    conn.commit()
+    conn.close()
+
+
+# -----------------------------
+# Message helpers
+# -----------------------------
 def save_message(conversation_id, role, content, model=None):
     conn = get_conn()
     cur = conn.cursor()
+
     cur.execute(
-        """INSERT OR IGNORE INTO messages
-           (conversation_id, role, content, model, created_at)
-           VALUES (?, ?, ?, ?, ?)""",
-        (conversation_id, role, content, model, datetime.utcnow().isoformat())
+        """
+        INSERT INTO messages
+        (conversation_id, role, content, model, created_at)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (
+            conversation_id,
+            role,
+            content,
+            model,
+            datetime.utcnow().isoformat()
+        )
     )
+
     conn.commit()
     conn.close()
 
@@ -69,57 +161,47 @@ def save_message(conversation_id, role, content, model=None):
 def load_recent_messages(conversation_id, limit=12):
     conn = get_conn()
     cur = conn.cursor()
+
     cur.execute(
-        """SELECT role, content FROM messages
-           WHERE conversation_id = ?
-           ORDER BY id DESC
-           LIMIT ?""",
+        """
+        SELECT role, content
+        FROM messages
+        WHERE conversation_id = ?
+        ORDER BY id DESC
+        LIMIT ?
+        """,
         (conversation_id, limit)
     )
+
     rows = cur.fetchall()
     conn.close()
-    return list(reversed(rows))
 
-
-def get_all_conversations(limit=100, offset=0):
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT id, created_at FROM conversations ORDER BY created_at DESC LIMIT ? OFFSET ?",
-        (limit, offset)
-    )
-    rows = cur.fetchall()
-    conn.close()
-    return [{"id": r[0], "created_at": r[1]} for r in rows]
+    # Reverse so oldest → newest
+    return [(row["role"], row["content"]) for row in reversed(rows)]
 
 
 def get_conversation_messages(conversation_id):
     conn = get_conn()
     cur = conn.cursor()
+
     cur.execute(
-        "SELECT role, content, created_at FROM messages WHERE conversation_id=? ORDER BY id",
+        """
+        SELECT role, content, created_at
+        FROM messages
+        WHERE conversation_id = ?
+        ORDER BY id ASC
+        """,
         (conversation_id,)
     )
+
     rows = cur.fetchall()
     conn.close()
+
     return [
-        {"role": r[0], "content": r[1], "created_at": r[2]}
-        for r in rows
+        {
+            "role": row["role"],
+            "content": row["content"],
+            "created_at": row["created_at"]
+        }
+        for row in rows
     ]
-
-def delete_conversation(conversation_id: str):
-    conn = get_conn()
-    cur = conn.cursor()
-    # Delete messages associated with the conversation
-    cur.execute("DELETE FROM messages WHERE conversation_id = ?", (conversation_id,))
-    # Delete the conversation itself
-    cur.execute("DELETE FROM conversations WHERE id = ?", (conversation_id,))
-    conn.commit()
-    conn.close()
-
-
-def get_conn():
-    conn = sqlite3.connect(DB_PATH, timeout=30, check_same_thread=False)
-    conn.execute("PRAGMA journal_mode=WAL;")
-    conn.execute("PRAGMA busy_timeout = 30000;")
-    return conn

@@ -146,7 +146,7 @@ def pick_model_for_request(text: str) -> str:
 async def call_groq_api(
     messages: List[Dict[str, str]],
     max_tokens: int = 800,
-    model= "llama-3.3-70b-versatile",
+    model: str = "llama-3.3-70b-versatile",
     temperature: float = 0.7,
     top_p: float = 0.7
 ) -> Dict[str, Any]:
@@ -530,11 +530,11 @@ async def stream_response(req: ChatRequest):
     max_tokens = req.max_tokens or 800
 
     # Gemini overrides
-    if model_choice == "gemini" and "creative" in req.message.lower():
+    if model_choice == "gemini" and any(
+    k in req.message.lower() for k in ["creative", "poem", "story", "write"]
+    ):
         messages.append({"role": "system", "content": GEMINI_CREATIVE_OVERRIDE})
-        temperature = 0.9
-        top_p = 0.95
-        max_tokens = req.max_tokens or 1200
+
     elif model_choice == "gemini" and any(
         k in req.message.lower() for k in ["code", "bug", "error", "stack trace"]
     ):
@@ -543,6 +543,7 @@ async def stream_response(req: ChatRequest):
     # Image generation special case
     if model_choice == "hf":
         yield f"data: {json.dumps({'type':'error','detail':'Image generation is not supported in chat. Use /generate_image.'})}\n\n"
+        return
 
     # ------------------ MAIN FLOW ------------------
     try:
@@ -813,9 +814,9 @@ async def rag_chat_endpoint(req: RagRequest):
 
         # Save user message
         past_messages = []
-        await safe_save_message(conv_id, "user", req.message, None)
         try:
             past_messages = await asyncio.to_thread(load_recent_messages, conv_id, limit=12)
+            await safe_save_message(conv_id, "user", req.message, None)
         except Exception as e:
             logger.warning(f"Failed to load RAG history: {e}")
 

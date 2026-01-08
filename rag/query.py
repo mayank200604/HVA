@@ -1,10 +1,4 @@
-from service import generate_rag_response
-
-def run_query_loop():
-    print("RAG Query Interface (Connected to Groq via App/Service)")
-    print("-----------------------------------------------------")
-    
-    while True:
+     while True:
         try:
             user_query = input("\nEnter your query (or type 'exit'/'quit' to stop): ")
             if user_query.lower() in ["exit", "quit"]:

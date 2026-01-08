@@ -10,7 +10,7 @@ def load_md_files():
             file_path = os.path.join(RAG_DOCS_PATH, filename)
             loader = UnstructuredMarkdownLoader(
                 file_path,
-                meta_data = {
+                metadata={
                     "source": filename,
                     "doc_type": "markdown"
                 })

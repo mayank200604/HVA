@@ -1,10 +1,5 @@
 from langchain_community.embeddings import HuggingFaceEmbeddings
-try:
-    from rag.loader import load_md_files
-    from rag.chunker import chunk_documents
-except ImportError:
-    from loader import load_md_files
-    from chunker import chunk_documents
+
 
 # Global cache for embedding model to avoid reloading on every request
 _embedding_model_cache = None
@@ -38,6 +33,8 @@ def get_embeddings(chunked_docs):
     return embedded_docs, embedding_model
 
 if __name__ == "__main__":
+    from rag.loader import load_md_files
+    from rag.chunker import chunk_documents
     docs = load_md_files()
     chunked_docs = chunk_documents(docs)
     embedded_docs, embedding_model = get_embeddings(chunked_docs)

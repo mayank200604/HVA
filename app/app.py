@@ -85,29 +85,6 @@ app.add_middleware(
 app.mount("/generated_images", StaticFiles(directory=IMAGE_DIR), name="generated_images")
 
 # --- Startup Event: Pre-load RAG components ---
-@app.on_event("startup")
-async def startup_event():
-    """Pre-load RAG vectorstore and embedding model on server startup."""
-    logger.info("🚀 Starting server initialization...")
-    try:
-        # Pre-load embedding model and vectorstore in background
-        def preload_rag():
-            try:
-                logger.info("📚 Pre-loading RAG vectorstore and embedding model...")
-                from rag.vectordb import get_vectorstore
-                vectorstore = get_vectorstore()
-                count = vectorstore._collection.count()
-                logger.info(f"✅ RAG vectorstore loaded successfully with {count} documents")
-            except Exception as e:
-                logger.warning(f"⚠️ Failed to pre-load RAG components: {e}")
-                logger.warning("RAG chat will still work, but first request may be slower")
-        
-        # Run in thread pool to avoid blocking startup
-        await asyncio.to_thread(preload_rag)
-    except Exception as e:
-        logger.error(f"❌ Startup initialization error: {e}")
-    
-    logger.info("✅ Server initialization complete")
 
 # --- Pydantic Models ---
 class Message(BaseModel):

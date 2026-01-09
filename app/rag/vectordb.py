@@ -1,13 +1,6 @@
 import os
 from langchain_community.vectorstores import Chroma
-try:
-    from rag.chunker import chunk_documents
-    from rag.loader import load_md_files
-    from rag.embeddings import get_embeddings, get_embedding_model
-except ImportError:
-    from chunker import chunk_documents
-    from loader import load_md_files
-    from embeddings import get_embeddings, get_embedding_model
+from rag.embeddings import get_embedding_model
 
 CHROMA_PATH = os.path.join(os.path.dirname(__file__), "chroma_db")
 

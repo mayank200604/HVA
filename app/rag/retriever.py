@@ -3,13 +3,13 @@ try:
 except ImportError:
     from vectordb import get_vectorstore
 
-def retrieve_documents(query, k=8, fetch_k=25, verbose=False):
+def retrieve_documents(query, k=5, fetch_k=15, verbose=False):
     """
     Retrieve relevant documents using MMR (Maximal Marginal Relevance).
     
     Args:
         query: Search query
-        k: Number of documents to return (increased from 5 to 8)
+        k: Number of documents to return (optimized for speed)
         fetch_k: Number of documents to fetch before MMR reranking
         verbose: If True, print retrieved sources
     

@@ -11,12 +11,20 @@ except ImportError:
 
 CHROMA_PATH = os.path.join(os.path.dirname(__file__), "chroma_db")
 
+# Global cache for vectorstore to avoid reloading on every request
+_vectorstore_cache = None
+
 
 def get_vectorstore():
     """
-    Load an existing Chroma vector store.
+    Load an existing Chroma vector store with caching.
     This function DOES NOT create the DB.
     """
+    global _vectorstore_cache
+    
+    # Return cached vectorstore if available
+    if _vectorstore_cache is not None:
+        return _vectorstore_cache
 
     if not os.path.exists(CHROMA_PATH):
         raise FileNotFoundError(
@@ -30,6 +38,9 @@ def get_vectorstore():
         persist_directory=CHROMA_PATH,
         embedding_function=embedding
     )
+    
+    # Cache the vectorstore for future requests
+    _vectorstore_cache = vectorstore
 
     return vectorstore
 

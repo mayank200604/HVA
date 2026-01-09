@@ -6,10 +6,23 @@ except ImportError:
     from loader import load_md_files
     from chunker import chunk_documents
 
+# Global cache for embedding model to avoid reloading on every request
+_embedding_model_cache = None
+
 def get_embedding_model():
-    return HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
+    """Get or create cached embedding model instance."""
+    global _embedding_model_cache
+    
+    if _embedding_model_cache is not None:
+        return _embedding_model_cache
+    
+    _embedding_model_cache = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2",
+        model_kwargs={'device': 'cpu'},  # Explicitly use CPU
+        encode_kwargs={'normalize_embeddings': True}  # Normalize for better similarity
     )
+    
+    return _embedding_model_cache
 
 def get_embeddings(chunked_docs):
     embedding_model = get_embedding_model()

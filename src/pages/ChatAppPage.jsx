@@ -96,7 +96,11 @@ export default function ChatAppPage() {
       const savedHistory = localStorage.getItem(getUserStorageKey("chatHistory"));
       if (savedHistory) {
         const parsed = JSON.parse(savedHistory);
-        const chats = Array.isArray(parsed) ? parsed : [];
+        let chats = Array.isArray(parsed) ? parsed : [];
+
+        // Filter out RAG chats that might have been synced previously
+        chats = chats.filter(c => !c.conversationId || !c.conversationId.toString().startsWith('rag-'));
+
         setChatHistory(chats);
 
         // Restore current chat if it exists

@@ -110,12 +110,12 @@ def get_all_conversations(user_id: str = None, limit=100, offset=0):
 
     if user_id:
         # When user_id is provided, ONLY return conversations for that specific user
-        # Do NOT return conversations with NULL user_id
+        # AND exclude RAG chats (which start with 'rag-')
         cur.execute(
             """
             SELECT id, created_at
             FROM conversations
-            WHERE user_id = ?
+            WHERE user_id = ? AND id NOT LIKE 'rag-%'
             ORDER BY created_at DESC
             LIMIT ? OFFSET ?
             """,

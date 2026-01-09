@@ -75,7 +75,13 @@ app = FastAPI(title="HVA Chatbot (FastAPI)", version="0.1")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:5175"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:5175",
+        "https://hva-pied.vercel.app",
+        "https://hva-6fhr.vercel.app"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

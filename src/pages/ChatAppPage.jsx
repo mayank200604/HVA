@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import ParticleSphere from "../shared/ParticleSphere";
+import { useAuth } from "../contexts/AuthContext";
 
 // Simple markdown to JSX converter for basic rendering
 const renderMarkdown = (text) => {
@@ -63,6 +64,7 @@ const chatHasMeaningfulMessages = (chat) => {
 };
 
 export default function ChatAppPage() {
+  const { currentUser, logout } = useAuth();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -83,17 +85,22 @@ export default function ChatAppPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // User-specific localStorage keys
+  const getUserStorageKey = (key) => `${key}_${currentUser?.uid || 'anonymous'}`;
+
   // --- Load saved chat history on mount ---
   useEffect(() => {
+    if (!currentUser) return;
+
     try {
-      const savedHistory = localStorage.getItem("chatHistory");
+      const savedHistory = localStorage.getItem(getUserStorageKey("chatHistory"));
       if (savedHistory) {
         const parsed = JSON.parse(savedHistory);
         const chats = Array.isArray(parsed) ? parsed : [];
         setChatHistory(chats);
 
         // Restore current chat if it exists
-        const savedChatId = localStorage.getItem("currentChatId");
+        const savedChatId = localStorage.getItem(getUserStorageKey("currentChatId"));
         if (savedChatId) {
           const chatId = parseInt(savedChatId);
           const chat = chats.find(c => c.id === chatId);
@@ -102,7 +109,7 @@ export default function ChatAppPage() {
             setMessages(chat.messages || []);
             currentBackendIdRef.current = chat.conversationId || null;
           } else {
-            localStorage.removeItem("currentChatId");
+            localStorage.removeItem(getUserStorageKey("currentChatId"));
           }
         }
       }
@@ -111,15 +118,16 @@ export default function ChatAppPage() {
     } finally {
       setIsHydrated(true); // Mark hydration complete after load
     }
-  }, []);
+  }, [currentUser]);
 
   // --- 🔄 Sync with Backend History ---
   useEffect(() => {
-    if (!isHydrated) return;
+    if (!isHydrated || !currentUser) return;
 
     const syncHistory = async () => {
       try {
-        const resp = await fetch(`${API_BASE_URL}/conversations`);
+        // Send user_id to filter conversations by user
+        const resp = await fetch(`${API_BASE_URL}/conversations?user_id=${encodeURIComponent(currentUser.uid)}`);
         if (!resp.ok) return;
         const backendConversations = await resp.json();
 
@@ -151,27 +159,27 @@ export default function ChatAppPage() {
     };
 
     syncHistory();
-  }, [isHydrated]);
+  }, [isHydrated, currentUser]);
 
   // Persist chat history to localStorage whenever it changes
   useEffect(() => {
-    if (!isHydrated) return; // Guard: don't save until load completes
+    if (!isHydrated || !currentUser) return; // Guard: don't save until load completes
     try {
-      localStorage.setItem("chatHistory", JSON.stringify(chatHistory));
+      localStorage.setItem(getUserStorageKey("chatHistory"), JSON.stringify(chatHistory));
     } catch (err) {
       console.error("Error persisting chat history:", err);
     }
-  }, [chatHistory, isHydrated]);
+  }, [chatHistory, isHydrated, currentUser]);
 
   // Persist currentChatId to localStorage whenever it changes
   useEffect(() => {
-    if (!isHydrated) return; // Guard: don't save until load completes
+    if (!isHydrated || !currentUser) return; // Guard: don't save until load completes
     if (currentChatId) {
-      localStorage.setItem("currentChatId", currentChatId.toString());
+      localStorage.setItem(getUserStorageKey("currentChatId"), currentChatId.toString());
     } else {
-      localStorage.removeItem("currentChatId");
+      localStorage.removeItem(getUserStorageKey("currentChatId"));
     }
-  }, [currentChatId, isHydrated]);
+  }, [currentChatId, isHydrated, currentUser]);
 
   // ref to keep AbortController if we need to cancel streaming
   const abortControllerRef = useRef(null);
@@ -181,8 +189,9 @@ export default function ChatAppPage() {
 
   // Load stored images from localStorage
   const loadStoredImages = () => {
+    if (!currentUser) return;
     try {
-      const savedImages = JSON.parse(localStorage.getItem("generated_images") || "[]");
+      const savedImages = JSON.parse(localStorage.getItem(getUserStorageKey("generated_images")) || "[]");
       setStoredImages(savedImages);
     } catch (err) {
       console.error("Error loading images from localStorage:", err);
@@ -414,6 +423,7 @@ export default function ChatAppPage() {
     const requestBody = {
       message: newMsg.text,
       conversation_id: backendConversationId,
+      user_id: currentUser?.uid,  // Include user ID
       max_tokens: 800,
     };
 
@@ -777,11 +787,23 @@ export default function ChatAppPage() {
 
           {showProfile && (
             <div className="mt-2 space-y-1 rounded-xl border border-slate-800 bg-slate-900/90 p-3 text-xs text-slate-300">
-              <div className="font-medium">mayan@demo.com</div>
+              <div className="font-medium truncate" title={currentUser?.email}>
+                {currentUser?.email || currentUser?.displayName || 'User'}
+              </div>
               <button className="w-full rounded-lg px-2 py-1 text-left text-slate-300 hover:bg-slate-800">
                 Account settings
               </button>
-              <button className="w-full rounded-lg px-2 py-1 text-left text-rose-300 hover:bg-slate-900/80">
+              <button
+                onClick={async () => {
+                  try {
+                    await logout();
+                    navigate('/auth');
+                  } catch (err) {
+                    console.error('Logout error:', err);
+                  }
+                }}
+                className="w-full rounded-lg px-2 py-1 text-left text-rose-300 hover:bg-slate-900/80"
+              >
                 Log out
               </button>
             </div>

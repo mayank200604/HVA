@@ -8,18 +8,43 @@ import ChatAppPage from "./pages/ChatAppPage";
 import VoiceSessionPage from "./pages/VoiceSessionPage";
 import ImageCreator from "./pages/ImageCreator";
 import ChatFAB from "./components/ChatFAB";
+import { AuthProvider } from "./contexts/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/auth" element={<AuthPage />} />
-        <Route path="/app" element={<ChatAppPage />} />
-        <Route path="/voice" element={<VoiceSessionPage />} />
-        <Route path="/images" element={<ImageCreator />} />
-      </Routes>
-      <ChatFAB />
+      <AuthProvider>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/auth" element={<AuthPage />} />
+          <Route
+            path="/app"
+            element={
+              <ProtectedRoute>
+                <ChatAppPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/voice"
+            element={
+              <ProtectedRoute>
+                <VoiceSessionPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/images"
+            element={
+              <ProtectedRoute>
+                <ImageCreator />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+        <ChatFAB />
+      </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>
 );

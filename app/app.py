@@ -92,6 +92,7 @@ class Message(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     conversation_id: Optional[str] = None
+    user_id: Optional[str] = None  # Firebase user ID
     max_tokens: Optional[int] = 1000
 
 class ImageGenRequest(BaseModel):
@@ -506,7 +507,7 @@ async def stream_response(req: ChatRequest):
 
     # Ensure conversation exists in DB
     try:
-        await asyncio.to_thread(create_conversation, conversation_id)
+        await asyncio.to_thread(create_conversation, conversation_id, req.user_id)
     except Exception as e:
         logger.warning(f"Failed to ensure conversation exists: {e}")
     
@@ -808,7 +809,7 @@ async def rag_chat_endpoint(req: RagRequest):
 
         # Ensure conversation exists
         try:
-            await asyncio.to_thread(create_conversation, conv_id)
+            await asyncio.to_thread(create_conversation, conv_id, None)  # RAG conversations don't have user_id yet
         except Exception as e:
             logger.warning(f"Failed to ensure RAG conversation exists: {e}")
 
@@ -864,8 +865,11 @@ async def rag_chat_endpoint(req: RagRequest):
 
 
 @app.get("/conversations")
-def list_conversations():
-    return get_all_conversations(limit=100)
+def list_conversations(user_id: str):
+    """Get all conversations for a specific user (user_id is required)"""
+    if not user_id or user_id.strip() == "":
+        raise HTTPException(status_code=400, detail="user_id is required")
+    return get_all_conversations(user_id=user_id, limit=100)
 
 
 @app.get("/conversation/{conversation_id}")

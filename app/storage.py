@@ -34,9 +34,18 @@ def init_db():
     cur.execute("""
     CREATE TABLE IF NOT EXISTS conversations (
         id TEXT PRIMARY KEY,
+        user_id TEXT,
         created_at TEXT NOT NULL
     )
     """)
+    
+    # Add user_id column if it doesn't exist (migration for existing databases)
+    try:
+        cur.execute("ALTER TABLE conversations ADD COLUMN user_id TEXT")
+        print("✅ Added user_id column to conversations table")
+    except sqlite3.OperationalError:
+        # Column already exists
+        pass
 
     # Messages table
     cur.execute("""
@@ -79,35 +88,51 @@ def init_db():
 # -----------------------------
 # Conversation helpers
 # -----------------------------
-def create_conversation(conversation_id: str):
+def create_conversation(conversation_id: str, user_id: str = None):
     conn = get_conn()
     cur = conn.cursor()
 
     cur.execute(
         """
-        INSERT OR IGNORE INTO conversations (id, created_at)
-        VALUES (?, ?)
+        INSERT OR IGNORE INTO conversations (id, user_id, created_at)
+        VALUES (?, ?, ?)
         """,
-        (conversation_id, datetime.utcnow().isoformat())
+        (conversation_id, user_id, datetime.utcnow().isoformat())
     )
 
     conn.commit()
     conn.close()
 
 
-def get_all_conversations(limit=100, offset=0):
+def get_all_conversations(user_id: str = None, limit=100, offset=0):
     conn = get_conn()
     cur = conn.cursor()
 
-    cur.execute(
-        """
-        SELECT id, created_at
-        FROM conversations
-        ORDER BY created_at DESC
-        LIMIT ? OFFSET ?
-        """,
-        (limit, offset)
-    )
+    if user_id:
+        # When user_id is provided, ONLY return conversations for that specific user
+        # Do NOT return conversations with NULL user_id
+        cur.execute(
+            """
+            SELECT id, created_at
+            FROM conversations
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+            LIMIT ? OFFSET ?
+            """,
+            (user_id, limit, offset)
+        )
+    else:
+        # Only when NO user_id is provided (admin/debug use), return all conversations
+        # This should NOT be called from the frontend
+        cur.execute(
+            """
+            SELECT id, created_at
+            FROM conversations
+            ORDER BY created_at DESC
+            LIMIT ? OFFSET ?
+            """,
+            (limit, offset)
+        )
 
     rows = cur.fetchall()
     conn.close()
@@ -118,15 +143,23 @@ def get_all_conversations(limit=100, offset=0):
     ]
 
 
-def delete_conversation(conversation_id: str):
+def delete_conversation(conversation_id: str, user_id: str = None):
     conn = get_conn()
     cur = conn.cursor()
 
     # Messages will be deleted automatically due to CASCADE
-    cur.execute(
-        "DELETE FROM conversations WHERE id = ?",
-        (conversation_id,)
-    )
+    # Only delete if user_id matches (security check)
+    if user_id:
+        cur.execute(
+            "DELETE FROM conversations WHERE id = ? AND user_id = ?",
+            (conversation_id, user_id)
+        )
+    else:
+        # Fallback for backward compatibility
+        cur.execute(
+            "DELETE FROM conversations WHERE id = ?",
+            (conversation_id,)
+        )
 
     conn.commit()
     conn.close()

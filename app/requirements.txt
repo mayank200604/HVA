@@ -6,3 +6,4 @@ pydantic
 aiofiles       # for file uploads optionally
 python-multipart
 Pillow         # For PIL/Image support (image processing)
+firebase-admin # Firebase Admin SDK for Firestore integration

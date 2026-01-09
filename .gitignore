@@ -88,3 +88,7 @@ htmlcov/
 
 # Explicit app env
 app/.env
+
+# Firebase private key file
+firebase_service_account.json
+

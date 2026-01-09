@@ -1,4 +1,4 @@
-from vectordb import get_vectorstore
+from rag.vectordb import get_vectorstore
 
 def retrieve_documents(query, k=5, fetch_k=15, verbose=False):
     """

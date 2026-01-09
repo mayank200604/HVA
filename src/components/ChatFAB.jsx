@@ -2,8 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../contexts/AuthContext';
 
 const ChatFAB = () => {
+    const { currentUser } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState([
         {
@@ -13,7 +15,57 @@ const ChatFAB = () => {
     ]);
     const [inputValue, setInputValue] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [conversationId, setConversationId] = useState(null);
     const messagesEndRef = useRef(null);
+
+    // User-specific localStorage key for RAG chat
+    const getRAGStorageKey = () => `rag_chat_${currentUser?.uid || 'anonymous'}`;
+    const getRAGConvIdKey = () => `rag_conv_id_${currentUser?.uid || 'anonymous'}`;
+
+    // Load RAG chat history from localStorage on mount
+    useEffect(() => {
+        if (!currentUser) return;
+
+        try {
+            const savedMessages = localStorage.getItem(getRAGStorageKey());
+            const savedConvId = localStorage.getItem(getRAGConvIdKey());
+
+            if (savedMessages) {
+                const parsed = JSON.parse(savedMessages);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    setMessages(parsed);
+                }
+            }
+
+            if (savedConvId) {
+                setConversationId(savedConvId);
+            }
+        } catch (err) {
+            console.error('Error loading RAG chat history:', err);
+        }
+    }, [currentUser]);
+
+    // Save RAG chat history to localStorage whenever messages change
+    useEffect(() => {
+        if (!currentUser) return;
+
+        try {
+            localStorage.setItem(getRAGStorageKey(), JSON.stringify(messages));
+        } catch (err) {
+            console.error('Error saving RAG chat history:', err);
+        }
+    }, [messages, currentUser]);
+
+    // Save conversation ID to localStorage
+    useEffect(() => {
+        if (!currentUser || !conversationId) return;
+
+        try {
+            localStorage.setItem(getRAGConvIdKey(), conversationId);
+        } catch (err) {
+            console.error('Error saving RAG conversation ID:', err);
+        }
+    }, [conversationId, currentUser]);
 
     const toggleChat = () => setIsOpen(!isOpen);
 
@@ -39,7 +91,11 @@ const ChatFAB = () => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ message: userMsg.content }),
+                body: JSON.stringify({
+                    message: userMsg.content,
+                    conversation_id: conversationId,
+                    user_id: currentUser?.uid  // Send user_id to backend
+                }),
             });
 
             if (!response.ok) {
@@ -47,6 +103,11 @@ const ChatFAB = () => {
             }
 
             const data = await response.json();
+
+            // Save conversation ID from backend
+            if (data.conversation_id && !conversationId) {
+                setConversationId(data.conversation_id);
+            }
 
             const assistantMsg = {
                 role: 'assistant',
@@ -69,6 +130,25 @@ const ChatFAB = () => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             handleSendMessage();
+        }
+    };
+
+    const handleClearChat = () => {
+        if (window.confirm('Are you sure you want to clear your RAG chat history?')) {
+            const initialMessage = {
+                role: 'assistant',
+                content: 'Hi! I am your **Career Guidance Assistant**. \n\nHow can I help you today? Ask me about career paths, frameworks, or industry trends.'
+            };
+            setMessages([initialMessage]);
+            setConversationId(null);
+
+            // Clear from localStorage
+            try {
+                localStorage.removeItem(getRAGStorageKey());
+                localStorage.removeItem(getRAGConvIdKey());
+            } catch (err) {
+                console.error('Error clearing RAG chat:', err);
+            }
         }
     };
 
@@ -104,15 +184,27 @@ const ChatFAB = () => {
                                     <p className="text-[11px] font-medium text-blue-100/90">AI-Powered Guidance</p>
                                 </div>
                             </div>
-                            <button
-                                onClick={toggleChat}
-                                className="p-2 hover:bg-white/20 rounded-full transition-colors active:scale-95 duration-200"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                                </svg>
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handleClearChat}
+                                    className="p-2 hover:bg-white/20 rounded-full transition-colors active:scale-95 duration-200"
+                                    title="Clear chat history"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                    </svg>
+                                </button>
+                                <button
+                                    onClick={toggleChat}
+                                    className="p-2 hover:bg-white/20 rounded-full transition-colors active:scale-95 duration-200"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
 
                         {/* Messages Area */}

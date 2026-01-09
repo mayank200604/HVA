@@ -794,6 +794,7 @@ async def serve_generated_image(filename: str):
 class RagRequest(BaseModel):
     message: str
     conversation_id: Optional[str] = None
+    user_id: Optional[str] = None  # Firebase user ID for user-specific RAG chats
 
 @app.post("/rag/chat")
 async def rag_chat_endpoint(req: RagRequest):
@@ -809,7 +810,7 @@ async def rag_chat_endpoint(req: RagRequest):
 
         # Ensure conversation exists
         try:
-            await asyncio.to_thread(create_conversation, conv_id, None)  # RAG conversations don't have user_id yet
+            await asyncio.to_thread(create_conversation, conv_id, req.user_id)  # RAG conversations now user-specific
         except Exception as e:
             logger.warning(f"Failed to ensure RAG conversation exists: {e}")
 

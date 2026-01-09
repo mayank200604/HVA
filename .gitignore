@@ -91,4 +91,31 @@ app/.env
 
 # Firebase private key file
 firebase_service_account.json
+app/firebase_service_account.json
 
+# Database files (SQLite)
+*.db
+*.sqlite
+*.sqlite3
+app/*.db
+app/*.sqlite
+app/*.sqlite3
+
+# Generated images
+generated_images/
+app/generated_images/
+*.thumb.jpg
+*.thumb.png
+
+# Test files (optional - uncomment if you want to ignore test scripts)
+# **/test_*.py
+# **/check_*.py
+# **/cleanup_*.py
+
+# Temporary documentation files
+*_FIX.md
+*_ISSUE.md
+TEMP_*.md
+
+.firebase/
+firebase-debug.log

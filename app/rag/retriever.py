@@ -1,7 +1,4 @@
-try:
-    from rag.vectordb import get_vectorstore
-except ImportError:
-    from vectordb import get_vectorstore
+from vectordb import get_vectorstore
 
 def retrieve_documents(query, k=5, fetch_k=15, verbose=False):
     """

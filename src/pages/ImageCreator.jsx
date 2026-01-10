@@ -23,7 +23,7 @@ export default function ImageCreator() {
     setPreviewUrl(null);
 
     try {
-      const resp = await fetch("http://localhost:8000/generate_image", {
+      const resp = await fetch(`${import.meta.env.VITE_API_URL}/generate_image`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -48,12 +48,12 @@ export default function ImageCreator() {
       const data = await resp.json();
       // expected: { url: "/generated_images/..." } from backend
       let url = data.url || data.image_url || data.image_data || null;
-      
+
       // If url is relative, convert to full URL with base64 if needed
       if (url && url.startsWith("/generated_images/")) {
-        url = `http://localhost:8000${url}`;
+        url = `${import.meta.env.VITE_API_URL}${url}`;
       }
-      
+
       if (!url) throw new Error("No image returned from server");
 
       setPreviewUrl(url);
@@ -115,7 +115,7 @@ export default function ImageCreator() {
                 <option value="128x128">128x128</option>
                 <option value="256x256">256x256</option>
                 <option value="512x512">512x512</option>
-                
+
               </select>
             </div>
 

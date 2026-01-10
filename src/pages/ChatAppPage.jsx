@@ -74,7 +74,7 @@ export default function ChatAppPage() {
 
   const [chatHistory, setChatHistory] = useState([]);
   const [currentChatId, setCurrentChatId] = useState(null);
-  const API_BASE_URL = "http://localhost:8000";
+  const API_BASE_URL = import.meta.env.VITE_API_URL;
   const [showProfile, setShowProfile] = useState(false);
   const [showImages, setShowImages] = useState(false);
   const [storedImages, setStoredImages] = useState([]);

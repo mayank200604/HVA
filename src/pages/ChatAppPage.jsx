@@ -82,6 +82,7 @@ export default function ChatAppPage() {
   const [isHydrated, setIsHydrated] = useState(false); // Hydration flag to prevent race condition
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, chat: null });
   const [copyFeedback, setCopyFeedback] = useState({ visible: false, message: "" });
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false); // Mobile sidebar toggle
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -674,13 +675,29 @@ export default function ChatAppPage() {
         </div>
       )}
 
+      {/* Mobile Overlay Backdrop */}
+      {isMobileSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 z-40 lg:hidden"
+          onClick={() => setIsMobileSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="flex w-64 flex-col border-r border-slate-800 bg-slate-950/90">
+      <aside className={`
+        flex w-64 flex-col border-r border-slate-800 bg-slate-950/90
+        fixed lg:relative inset-y-0 left-0 z-50
+        transform transition-transform duration-300 ease-in-out
+        ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}>
 
         {/* NEW CHAT BUTTON */}
         <div className="p-3 border-b border-slate-800">
           <button
-            onClick={handleNewChat}
+            onClick={() => {
+              handleNewChat();
+              setIsMobileSidebarOpen(false); // Close sidebar on mobile after action
+            }}
             className="w-full flex items-center gap-2 rounded-lg bg-transparent border border-slate-700 px-3 py-2.5 text-sm text-slate-200 hover:bg-slate-800/50 hover:border-slate-600 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -708,7 +725,10 @@ export default function ChatAppPage() {
                 chatHistory.map((chat) => (
                   <button
                     key={chat.id}
-                    onClick={() => loadChat(chat)}
+                    onClick={() => {
+                      loadChat(chat);
+                      setIsMobileSidebarOpen(false); // Close sidebar on mobile after selecting chat
+                    }}
                     onContextMenu={(e) => handleContextMenu(e, chat)}
                     className={`w-full rounded-lg px-3 py-2.5 text-left text-sm transition-colors group relative ${chat.id === currentChatId
                       ? "bg-slate-800 text-slate-100"
@@ -819,27 +839,38 @@ export default function ChatAppPage() {
       <main className="flex flex-1 flex-col">
 
         <header className="flex items-center justify-between border-b border-slate-800 bg-slate-950/80 px-4 py-3">
-          <div>
+          {/* Mobile Hamburger Menu */}
+          <button
+            onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+            className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-slate-800/50 transition-colors"
+            aria-label="Toggle menu"
+          >
+            <svg className="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+
+          <div className="flex-1 lg:flex-none">
             <p className="text-sm font-medium">
               {currentChatId ? "Chat" : "New Chat"}
             </p>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-400 hidden sm:block">
               Hybrid Voice Assistant · Groq · DeepSeek
             </p>
           </div>
         </header>
 
         {/* Messages */}
-        <section className={`flex-1 space-y-4 overflow-y-auto px-3 py-4 md:px-10 md:py-8 ${debugError ? "pt-16" : ""}`}>
+        <section className={`flex-1 space-y-3 sm:space-y-4 overflow-y-auto px-3 py-4 sm:px-6 md:px-10 md:py-8 ${debugError ? "pt-16" : ""}`}>
           {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-full">
+            <div className="flex flex-col items-center justify-center h-full px-4">
               <div className="relative flex items-center justify-center transition-all duration-700 hover:scale-[1.02]">
                 <div className="pointer-events-none absolute inset-8 rounded-full bg-[radial-gradient(circle,_#06b6d422,_transparent_70%)] blur-2xl animate-pulse" />
-                <ParticleSphere size={380} showBorder={false} />
+                <ParticleSphere size={window.innerWidth < 640 ? 280 : window.innerWidth < 1024 ? 320 : 380} showBorder={false} />
               </div>
-              <div className="mt-8 text-center space-y-2">
-                <h2 className="text-xl font-medium bg-gradient-to-r from-cyan-400 to-violet-400 bg-clip-text text-transparent">How can I assist you today?</h2>
-                <p className="text-sm text-slate-500 max-w-xs mx-auto">Start a conversation with your Hybrid Voice Assistant</p>
+              <div className="mt-6 sm:mt-8 text-center space-y-2">
+                <h2 className="text-lg sm:text-xl font-medium bg-gradient-to-r from-cyan-400 to-violet-400 bg-clip-text text-transparent px-4">How can I assist you today?</h2>
+                <p className="text-xs sm:text-sm text-slate-500 max-w-xs mx-auto px-4">Start a conversation with your Hybrid Voice Assistant</p>
               </div>
             </div>
           )}
@@ -849,7 +880,7 @@ export default function ChatAppPage() {
               className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-2xl rounded-2xl px-4 py-3 text-sm shadow-md transition-all duration-300 relative group ${m.role === "user"
+                className={`max-w-[85%] sm:max-w-xl md:max-w-2xl rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 text-sm shadow-md transition-all duration-300 relative group ${m.role === "user"
                   ? "bg-cyan-500 text-black shadow-cyan-500/20 hover:shadow-lg"
                   : "bg-slate-900 text-slate-100 border border-slate-800 whitespace-pre-wrap break-words shadow-slate-950/50 hover:shadow-lg hover:border-slate-700"
                   }`}
@@ -902,9 +933,9 @@ export default function ChatAppPage() {
         {/* Input bar */}
         <form
           onSubmit={sendMessage}
-          className="border-t border-slate-800 bg-gradient-to-t from-slate-950 to-slate-950/90 px-3 py-3 md:px-10 transition-all duration-200"
+          className="border-t border-slate-800 bg-gradient-to-t from-slate-950 to-slate-950/90 px-2 py-2 sm:px-3 sm:py-3 md:px-10 transition-all duration-200"
         >
-          <div className={`mx-auto flex max-w-3xl items-end gap-3 rounded-2xl border-2 transition-all duration-200 px-4 py-3 ${isFocused
+          <div className={`mx-auto flex flex-wrap sm:flex-nowrap max-w-3xl items-end gap-2 sm:gap-3 rounded-2xl border-2 transition-all duration-200 px-3 sm:px-4 py-2 sm:py-3 ${isFocused
             ? "border-cyan-400 bg-slate-900 shadow-lg shadow-cyan-400/20"
             : "border-slate-700 bg-slate-900/50 hover:border-slate-600"
             }`}>
@@ -914,19 +945,19 @@ export default function ChatAppPage() {
               onKeyDown={handleKeyDown}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
-              placeholder="Type your message... (Shift+Enter for new line)"
+              placeholder="Type your message..."
               style={{ height: `${textareaHeight}px` }}
-              className="max-h-40 flex-1 overflow-y-auto resize-none bg-transparent px-1 text-sm text-slate-50 placeholder:text-slate-500 focus:outline-none transition-colors"
+              className="max-h-40 flex-1 w-full sm:w-auto overflow-y-auto resize-none bg-transparent px-1 text-sm text-slate-50 placeholder:text-slate-500 focus:outline-none transition-colors"
             />
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
               {input.length > 0 && (
                 <span className="text-xs text-slate-400 whitespace-nowrap">{input.length}</span>
               )}
               <button
                 type="button"
                 onClick={() => navigate("/voice")}
-                className={`flex h-9 w-9 items-center justify-center rounded-full border-2 transition-all duration-200 ${isFocused
+                className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full border-2 transition-all duration-200 ${isFocused
                   ? "border-violet-400 bg-violet-500/30 text-violet-200 hover:bg-violet-500/40"
                   : "border-violet-400/60 bg-violet-500/20 text-violet-300 hover:bg-violet-500/30"
                   }`}
@@ -939,7 +970,7 @@ export default function ChatAppPage() {
               <button
                 type="button"
                 onClick={() => navigate("/images", { state: { currentChatId: currentChatId } })}
-                className={`flex h-9 items-center justify-center rounded-full border-2 transition-all duration-200 px-3 text-xs font-medium ${isFocused
+                className={`flex h-8 sm:h-9 items-center justify-center rounded-full border-2 transition-all duration-200 px-2 sm:px-3 text-xs font-medium ${isFocused
                   ? "border-cyan-400 bg-cyan-500/30 text-cyan-200 hover:bg-cyan-500/40"
                   : "border-cyan-400/60 bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30"
                   }`}
@@ -950,7 +981,7 @@ export default function ChatAppPage() {
               <button
                 type="submit"
                 disabled={!input.trim()}
-                className={`flex h-9 items-center rounded-full px-5 text-xs font-medium transition-all duration-200 ${input.trim()
+                className={`flex h-8 sm:h-9 items-center rounded-full px-4 sm:px-5 text-xs font-medium transition-all duration-200 ${input.trim()
                   ? "bg-cyan-400 text-black hover:bg-cyan-300 shadow-lg shadow-cyan-400/30 hover:shadow-xl"
                   : "bg-slate-700 text-slate-400 cursor-not-allowed opacity-50"
                   }`}

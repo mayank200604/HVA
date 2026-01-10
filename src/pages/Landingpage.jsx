@@ -107,7 +107,7 @@ export default function LandingPage() {
               <span className="font-medium">Phase 1 · Multi-Level AI Chat System</span>
             </div>
 
-            <h1 className="text-3xl font-semibold leading-tight tracking-tight md:text-5xl lg:text-6xl">
+            <h1 className="text-2xl sm:text-3xl font-semibold leading-tight tracking-tight md:text-5xl lg:text-6xl">
               A{" "}
               <span className="bg-gradient-to-r from-cyan-400 via-sky-400 to-violet-400 bg-clip-text text-transparent">
                 voice-first AI console
@@ -158,88 +158,116 @@ export default function LandingPage() {
 
           {/* RIGHT HERO — ORB WITH ORBITING NODES */}
           <div className="relative flex items-center justify-center">
-            {/* Main Sphere Container with Orbiting Nodes */}
-            <div className="relative flex h-[480px] w-[480px] items-center justify-center">
+            {/* Main Sphere Container with Orbiting Nodes - Responsive */}
+            <div className="relative flex h-[280px] w-[280px] sm:h-[360px] sm:w-[360px] md:h-[420px] md:w-[420px] lg:h-[480px] lg:w-[480px] items-center justify-center mx-auto">
 
               {/* Orbiting Capability Nodes */}
               <div className="absolute inset-0 flex items-center justify-center">
                 {/* Node 1: Chat */}
-                <div className="orbit-node orbit-node-1 absolute">
-                  <div className="relative group">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-cyan-400/20 bg-slate-900/40 backdrop-blur-sm opacity-60 orbit-node">
-                      <svg className="w-5 h-5 text-cyan-400/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="orbit-node-1 absolute">
+                  <div
+                    className="relative group cursor-pointer orbit-node"
+                    onMouseEnter={() => setActiveCapability('chat')}
+                    onMouseLeave={() => setActiveCapability(null)}
+                    onClick={() => setActiveCapability(activeCapability === 'chat' ? null : 'chat')}
+                  >
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-cyan-400/20 bg-slate-900/40 backdrop-blur-sm opacity-60 group-hover:opacity-100 group-hover:border-cyan-400/60 group-hover:bg-slate-900/80 transition-all duration-300">
+                      <svg className="w-5 h-5 text-cyan-400/70 group-hover:text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                       </svg>
                     </div>
-                    <div className="orbit-tooltip absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900/90 px-2 py-1 text-[9px] text-cyan-300 backdrop-blur-sm border border-cyan-400/20">
+                    <div className="orbit-tooltip absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900/95 px-2 py-1 text-[9px] text-cyan-300 backdrop-blur-sm border border-cyan-400/30 shadow-lg">
                       Normal Chat
                     </div>
                   </div>
                 </div>
 
                 {/* Node 2: Code */}
-                <div className="orbit-node orbit-node-2 absolute">
-                  <div className="relative group">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-violet-400/20 bg-slate-900/40 backdrop-blur-sm opacity-60 orbit-node">
-                      <svg className="w-5 h-5 text-violet-400/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="orbit-node-2 absolute">
+                  <div
+                    className="relative group cursor-pointer orbit-node"
+                    onMouseEnter={() => setActiveCapability('code')}
+                    onMouseLeave={() => setActiveCapability(null)}
+                    onClick={() => setActiveCapability(activeCapability === 'code' ? null : 'code')}
+                  >
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-violet-400/20 bg-slate-900/40 backdrop-blur-sm opacity-60 group-hover:opacity-100 group-hover:border-violet-400/60 group-hover:bg-slate-900/80 transition-all duration-300">
+                      <svg className="w-5 h-5 text-violet-400/70 group-hover:text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                       </svg>
                     </div>
-                    <div className="orbit-tooltip absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900/90 px-2 py-1 text-[9px] text-violet-300 backdrop-blur-sm border border-violet-400/20">
+                    <div className="orbit-tooltip absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900/95 px-2 py-1 text-[9px] text-violet-300 backdrop-blur-sm border border-violet-400/30 shadow-lg">
                       Code & Reasoning
                     </div>
                   </div>
                 </div>
 
                 {/* Node 3: Image */}
-                <div className="orbit-node orbit-node-3 absolute">
-                  <div className="relative group">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-emerald-400/20 bg-slate-900/40 backdrop-blur-sm opacity-60 orbit-node">
-                      <svg className="w-5 h-5 text-emerald-400/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="orbit-node-3 absolute">
+                  <div
+                    className="relative group cursor-pointer orbit-node"
+                    onMouseEnter={() => setActiveCapability('image')}
+                    onMouseLeave={() => setActiveCapability(null)}
+                    onClick={() => setActiveCapability(activeCapability === 'image' ? null : 'image')}
+                  >
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-emerald-400/20 bg-slate-900/40 backdrop-blur-sm opacity-60 group-hover:opacity-100 group-hover:border-emerald-400/60 group-hover:bg-slate-900/80 transition-all duration-300">
+                      <svg className="w-5 h-5 text-emerald-400/70 group-hover:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
                     </div>
-                    <div className="orbit-tooltip absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900/90 px-2 py-1 text-[9px] text-emerald-300 backdrop-blur-sm border border-emerald-400/20">
+                    <div className="orbit-tooltip absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900/95 px-2 py-1 text-[9px] text-emerald-300 backdrop-blur-sm border border-emerald-400/30 shadow-lg">
                       Image Generation
                     </div>
                   </div>
                 </div>
 
                 {/* Node 4: Speed */}
-                <div className="orbit-node orbit-node-4 absolute">
-                  <div className="relative group">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-sky-400/20 bg-slate-900/40 backdrop-blur-sm opacity-60 orbit-node">
-                      <svg className="w-5 h-5 text-sky-400/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="orbit-node-4 absolute">
+                  <div
+                    className="relative group cursor-pointer orbit-node"
+                    onMouseEnter={() => setActiveCapability('speed')}
+                    onMouseLeave={() => setActiveCapability(null)}
+                    onClick={() => setActiveCapability(activeCapability === 'speed' ? null : 'speed')}
+                  >
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-sky-400/20 bg-slate-900/40 backdrop-blur-sm opacity-60 group-hover:opacity-100 group-hover:border-sky-400/60 group-hover:bg-slate-900/80 transition-all duration-300">
+                      <svg className="w-5 h-5 text-sky-400/70 group-hover:text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
                       </svg>
                     </div>
-                    <div className="orbit-tooltip absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900/90 px-2 py-1 text-[9px] text-sky-300 backdrop-blur-sm border border-sky-400/20">
+                    <div className="orbit-tooltip absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900/95 px-2 py-1 text-[9px] text-sky-300 backdrop-blur-sm border border-sky-400/30 shadow-lg">
                       Instant Response
                     </div>
                   </div>
                 </div>
 
                 {/* Node 5: RAG */}
-                <div className="orbit-node orbit-node-5 absolute">
-                  <div className="relative group">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-amber-400/20 bg-slate-900/40 backdrop-blur-sm opacity-60 orbit-node">
-                      <svg className="w-5 h-5 text-amber-400/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="orbit-node-5 absolute">
+                  <div
+                    className="relative group cursor-pointer orbit-node"
+                    onMouseEnter={() => setActiveCapability('rag')}
+                    onMouseLeave={() => setActiveCapability(null)}
+                    onClick={() => setActiveCapability(activeCapability === 'rag' ? null : 'rag')}
+                  >
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-amber-400/20 bg-slate-900/40 backdrop-blur-sm opacity-60 group-hover:opacity-100 group-hover:border-amber-400/60 group-hover:bg-slate-900/80 transition-all duration-300">
+                      <svg className="w-5 h-5 text-amber-400/70 group-hover:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                       </svg>
                     </div>
-                    <div className="orbit-tooltip absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900/90 px-2 py-1 text-[9px] text-amber-300 backdrop-blur-sm border border-amber-400/20">
+                    <div className="orbit-tooltip absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900/95 px-2 py-1 text-[9px] text-amber-300 backdrop-blur-sm border border-amber-400/30 shadow-lg">
                       RAG Intelligence
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Main Sphere */}
+              {/* Main Sphere - Responsive sizing */}
               <div
-                className="relative flex h-[480px] w-[480px] items-center justify-center transition-all duration-500"
+                className="relative flex h-[280px] w-[280px] sm:h-[360px] sm:w-[360px] md:h-[420px] md:w-[420px] lg:h-[480px] lg:w-[480px] items-center justify-center transition-all duration-500"
               >
-                <div className="pointer-events-none absolute inset-8 rounded-full bg-[radial-gradient(circle,_#06b6d422,_transparent_70%)] blur-2xl animate-pulse" />
-                <ParticleSphere size={380} showBorder={false} />
+                <div className="pointer-events-none absolute inset-4 sm:inset-8 rounded-full bg-[radial-gradient(circle,_#06b6d422,_transparent_70%)] blur-2xl animate-pulse" />
+                <ParticleSphere
+                  size={typeof window !== 'undefined' ? (window.innerWidth < 640 ? 220 : window.innerWidth < 768 ? 280 : window.innerWidth < 1024 ? 340 : 380) : 380}
+                  showBorder={false}
+                />
               </div>
             </div>
           </div>
@@ -259,7 +287,7 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-5">
+          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-5">
             {[
               {
                 id: 'chat',
@@ -393,7 +421,7 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
               {
                 title: "Multi-Level Chat",
@@ -456,7 +484,7 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
             {[
               {
                 badge: "Speed",
@@ -526,7 +554,7 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
             {[
               {
                 title: "Voice Assistant",

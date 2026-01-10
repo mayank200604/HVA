@@ -248,53 +248,163 @@
 
 /* Slow orbital animations for capability nodes */
 /* Nodes are evenly distributed at 72° intervals (360° / 5 nodes) */
-@keyframes orbit1 {
-  0% {
-    transform: rotate(0deg) translateX(270px) rotate(0deg);
+
+/* Mobile orbits (smaller radius) */
+@media (max-width: 640px) {
+  @keyframes orbit1 {
+    0% {
+      transform: rotate(0deg) translateX(110px) rotate(0deg);
+    }
+
+    100% {
+      transform: rotate(360deg) translateX(110px) rotate(-360deg);
+    }
   }
 
-  100% {
-    transform: rotate(360deg) translateX(270px) rotate(-360deg);
+  @keyframes orbit2 {
+    0% {
+      transform: rotate(72deg) translateX(110px) rotate(-72deg);
+    }
+
+    100% {
+      transform: rotate(432deg) translateX(110px) rotate(-432deg);
+    }
+  }
+
+  @keyframes orbit3 {
+    0% {
+      transform: rotate(144deg) translateX(110px) rotate(-144deg);
+    }
+
+    100% {
+      transform: rotate(504deg) translateX(110px) rotate(-504deg);
+    }
+  }
+
+  @keyframes orbit4 {
+    0% {
+      transform: rotate(216deg) translateX(110px) rotate(-216deg);
+    }
+
+    100% {
+      transform: rotate(576deg) translateX(110px) rotate(-576deg);
+    }
+  }
+
+  @keyframes orbit5 {
+    0% {
+      transform: rotate(288deg) translateX(110px) rotate(-288deg);
+    }
+
+    100% {
+      transform: rotate(648deg) translateX(110px) rotate(-648deg);
+    }
   }
 }
 
-@keyframes orbit2 {
-  0% {
-    transform: rotate(72deg) translateX(270px) rotate(-72deg);
+/* Tablet orbits (medium radius) */
+@media (min-width: 641px) and (max-width: 1023px) {
+  @keyframes orbit1 {
+    0% {
+      transform: rotate(0deg) translateX(170px) rotate(0deg);
+    }
+
+    100% {
+      transform: rotate(360deg) translateX(170px) rotate(-360deg);
+    }
   }
 
-  100% {
-    transform: rotate(432deg) translateX(270px) rotate(-432deg);
+  @keyframes orbit2 {
+    0% {
+      transform: rotate(72deg) translateX(170px) rotate(-72deg);
+    }
+
+    100% {
+      transform: rotate(432deg) translateX(170px) rotate(-432deg);
+    }
+  }
+
+  @keyframes orbit3 {
+    0% {
+      transform: rotate(144deg) translateX(170px) rotate(-144deg);
+    }
+
+    100% {
+      transform: rotate(504deg) translateX(170px) rotate(-504deg);
+    }
+  }
+
+  @keyframes orbit4 {
+    0% {
+      transform: rotate(216deg) translateX(170px) rotate(-216deg);
+    }
+
+    100% {
+      transform: rotate(576deg) translateX(170px) rotate(-576deg);
+    }
+  }
+
+  @keyframes orbit5 {
+    0% {
+      transform: rotate(288deg) translateX(170px) rotate(-288deg);
+    }
+
+    100% {
+      transform: rotate(648deg) translateX(170px) rotate(-648deg);
+    }
   }
 }
 
-@keyframes orbit3 {
-  0% {
-    transform: rotate(144deg) translateX(270px) rotate(-144deg);
+/* Desktop orbits (full radius) */
+@media (min-width: 1024px) {
+  @keyframes orbit1 {
+    0% {
+      transform: rotate(0deg) translateX(220px) rotate(0deg);
+    }
+
+    100% {
+      transform: rotate(360deg) translateX(220px) rotate(-360deg);
+    }
   }
 
-  100% {
-    transform: rotate(504deg) translateX(270px) rotate(-504deg);
-  }
-}
+  @keyframes orbit2 {
+    0% {
+      transform: rotate(72deg) translateX(220px) rotate(-72deg);
+    }
 
-@keyframes orbit4 {
-  0% {
-    transform: rotate(216deg) translateX(270px) rotate(-216deg);
-  }
-
-  100% {
-    transform: rotate(576deg) translateX(270px) rotate(-576deg);
-  }
-}
-
-@keyframes orbit5 {
-  0% {
-    transform: rotate(288deg) translateX(270px) rotate(-288deg);
+    100% {
+      transform: rotate(432deg) translateX(220px) rotate(-432deg);
+    }
   }
 
-  100% {
-    transform: rotate(648deg) translateX(270px) rotate(-648deg);
+  @keyframes orbit3 {
+    0% {
+      transform: rotate(144deg) translateX(220px) rotate(-144deg);
+    }
+
+    100% {
+      transform: rotate(504deg) translateX(220px) rotate(-504deg);
+    }
+  }
+
+  @keyframes orbit4 {
+    0% {
+      transform: rotate(216deg) translateX(220px) rotate(-216deg);
+    }
+
+    100% {
+      transform: rotate(576deg) translateX(220px) rotate(-576deg);
+    }
+  }
+
+  @keyframes orbit5 {
+    0% {
+      transform: rotate(288deg) translateX(220px) rotate(-288deg);
+    }
+
+    100% {
+      transform: rotate(648deg) translateX(220px) rotate(-648deg);
+    }
   }
 }
 
@@ -318,19 +428,25 @@
   animation: orbit5 27s linear infinite;
 }
 
+
 /* Subtle glow on hover for orbit nodes */
 .orbit-node {
   transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+  z-index: 10;
+  cursor: pointer;
 }
 
 .orbit-node:hover {
-  transform: scale(1.15);
+  transform: scale(1.15) !important;
   opacity: 1 !important;
+  z-index: 20;
 }
 
 .orbit-node:hover .orbit-tooltip {
-  opacity: 1;
-  transform: translateY(-8px);
+  opacity: 1 !important;
+  transform: translateY(-8px) !important;
+  visibility: visible !important;
 }
 
 .orbit-tooltip {
@@ -338,6 +454,8 @@
   transform: translateY(0);
   transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
   pointer-events: none;
+  visibility: hidden;
+  z-index: 30;
 }
 
 /* ---------------------------------------------
@@ -372,4 +490,55 @@
 
 .animate-reverse-spin {
   animation: reverse-spin 60s linear infinite;
+}
+
+/* ---------------------------------------------
+   MOBILE RESPONSIVE UTILITIES
+   --------------------------------------------- */
+
+/* Smooth scrolling for better mobile UX */
+html {
+  scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Better touch targets for mobile */
+@media (max-width: 1024px) {
+
+  button,
+  a,
+  input,
+  textarea {
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* Safe area padding for notched devices */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Prevent zoom on input focus (iOS) */
+@media screen and (max-width: 640px) {
+
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Optimize animations for mobile performance */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -12,7 +12,7 @@ export default function ImageCreator() {
   const navigate = useNavigate();
   const location = useLocation();
   const currentChatId = location.state?.currentChatId || null;
-  const API_BASE_URL = import.meta.env.VITE_API_URL || "https://hva-ed6w.onrender.com";
+  const API_BASE_URL = import.meta.env.VITE_API_URL;
 
   async function generateImage() {
     setError("");

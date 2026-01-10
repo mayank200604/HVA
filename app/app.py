@@ -80,7 +80,8 @@ app.add_middleware(
         "http://localhost:5174",
         "http://localhost:5175",
         "https://hva-6fhr.vercel.app",
-        "https://hva-pied.vercel.app"
+        "https://hva-pied.vercel.app",
+        "https://hvavoiceassistant.netlify.app"
     ],
     allow_credentials=True,
     allow_methods=["*"],

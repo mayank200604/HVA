@@ -945,7 +945,3 @@ def list_conversations(user_id: str):
 def get_conversation(conversation_id: str):
     return get_conversation_messages(conversation_id)
 
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("app:app", host="0.0.0.0", port=8000)

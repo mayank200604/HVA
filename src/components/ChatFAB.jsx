@@ -161,15 +161,15 @@ const ChatFAB = () => {
     }
 
     return (
-        <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end pointer-events-none">
+        <div className="fixed bottom-6 left-6 lg:left-auto lg:right-6 z-50 flex flex-col items-start lg:items-end pointer-events-none">
             <AnimatePresence>
                 {isOpen && (
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.9, y: 20, transformOrigin: "bottom right" }}
+                        initial={{ opacity: 0, scale: 0.9, y: 20, transformOrigin: "bottom left" }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
                         transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                        className="pointer-events-auto w-[380px] h-[600px] mb-4 flex flex-col overflow-hidden rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 backdrop-blur-xl bg-white/95 dark:bg-gray-900/95"
+                        className="pointer-events-auto w-[calc(100vw-3rem)] max-w-[380px] lg:w-[380px] h-[500px] sm:h-[600px] mb-4 flex flex-col overflow-hidden rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 backdrop-blur-xl bg-white/95 dark:bg-gray-900/95"
                     >
                         {/* Header */}
                         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white flex justify-between items-center shadow-md">

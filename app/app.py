@@ -33,8 +33,9 @@ logging.basicConfig(
 logger = logging.getLogger("hva_app")
 
 from storage import init_db, create_conversation, save_message, load_recent_messages, get_all_conversations, get_conversation_messages
-from rag.retriever import retrieve_documents
-from rag.prompt import build_rag_prompt
+# RAG imports disabled to prevent deployment failures due to storage limits
+# from rag.retriever import retrieve_documents
+# from rag.prompt import build_rag_prompt
 
 
 # Debug: print the absolute path of the running file
@@ -91,54 +92,19 @@ app.add_middleware(
 # Mount static files directory for generated images
 app.mount("/generated_images", StaticFiles(directory=IMAGE_DIR), name="generated_images")
 
-# --- Startup Event: Pre-load RAG components ---
+# --- Startup Event: RAG Disabled ---
 @app.on_event("startup")
 async def startup_event():
     """
-    Preload RAG components at startup to prevent timeout-based 502 errors.
+    RAG components are temporarily disabled to prevent deployment failures on Render.
     
-    This ensures the embedding model and vectorstore are fully initialized
-    BEFORE any requests arrive, preventing cold-start timeouts on Render.
+    The /rag/chat endpoint will return a 503 Service Unavailable response.
+    All chatbot functionality (/chat, conversations, etc.) remains fully operational.
     """
-    import os
-    
-    logger.info("🚀 Starting RAG component initialization...")
-    
-    # 1. Verify database file exists
-    base_path = os.path.dirname(__file__)
-    chroma_path = os.path.join(base_path, "rag", "chroma_db", "chroma.sqlite3")
-    
-    if not os.path.exists(chroma_path):
-        logger.error(f"❌ RAG Database file NOT found at '{chroma_path}'.")
-        logger.error("CRITICAL: Ensure 'app/rag/chroma_db/chroma.sqlite3' is committed and deployed.")
-        logger.warning("⚠️  /rag/chat endpoint will fail until database is available")
-        return
-    
-    size_mb = os.path.getsize(chroma_path) / (1024 * 1024)
-    logger.info(f"✅ RAG Database file found ({size_mb:.2f} MB)")
-    
-    # 2. Preload embedding model (CRITICAL - prevents first-request timeout)
-    try:
-        from rag.embeddings import preload_embedding_model
-        success = await asyncio.to_thread(preload_embedding_model)
-        if not success:
-            logger.warning("⚠️  Embedding model preload had issues, but continuing...")
-    except Exception as e:
-        logger.error(f"❌ Failed to preload embedding model: {str(e)}")
-        logger.warning("⚠️  First /rag/chat request may be slow or timeout")
-    
-    # 3. Preload vectorstore (optional but recommended)
-    try:
-        from rag.vectordb import get_vectorstore
-        logger.info("🔄 Preloading vectorstore...")
-        vs = await asyncio.to_thread(get_vectorstore)
-        count = vs._collection.count()
-        logger.info(f"✅ Vectorstore preloaded with {count} documents")
-    except Exception as e:
-        logger.error(f"❌ Failed to preload vectorstore: {str(e)}")
-        logger.warning("⚠️  First /rag/chat request may be slow or timeout")
-    
-    logger.info("🎉 RAG initialization complete - ready to serve requests!")
+    logger.info("� Application startup - RAG functionality is DISABLED")
+    logger.info("✅ Chatbot endpoints are fully operational")
+    logger.info("⚠️  /rag/chat endpoint will return 503 Service Unavailable")
+    logger.info("🎉 Startup complete - ready to serve chatbot requests!")
 
 
 # --- Pydantic Models ---
@@ -856,108 +822,24 @@ class RagRequest(BaseModel):
 @app.post("/rag/chat")
 async def rag_chat_endpoint(req: RagRequest):
     """
-    RAG-based chat endpoint.
-    Retrieves info from rag_docs and answers using Groq.
-    Production-safe with detailed error logging.
+    RAG functionality is temporarily disabled due to deployment constraints.
+    
+    This endpoint returns a 503 Service Unavailable response with a clear message.
+    No embedding models, vector databases, or RAG components are initialized.
+    
+    For chatbot functionality, please use the /chat endpoint instead.
     """
-    try:
-        # Handle conversation ID
-        conv_id = req.conversation_id
-        if not conv_id:
-            conv_id = f"rag-{uuid.uuid4()}"
-
-        # Ensure conversation exists
-        try:
-            await asyncio.to_thread(create_conversation, conv_id, req.user_id)  # RAG conversations now user-specific
-        except Exception as e:
-            logger.warning(f"Failed to ensure RAG conversation exists: {e}")
-
-        # Save user message
-        past_messages = []
-        try:
-            past_messages = await asyncio.to_thread(load_recent_messages, conv_id, limit=12)
-            await safe_save_message(conv_id, "user", req.message, None)
-        except Exception as e:
-            logger.warning(f"Failed to load RAG history: {e}")
-
-        # 1. Retrieve documents (run in threadpool to avoid blocking event loop)
-        try:
-            logger.info(f"RAG: Retrieving documents for query: '{req.message[:50]}...'")
-            docs = await asyncio.to_thread(retrieve_documents, req.message)
-            logger.info(f"RAG: Retrieved {len(docs)} documents")
-        except FileNotFoundError as e:
-            # Specific error for missing database
-            error_msg = f"Knowledge base not available: {str(e)}"
-            logger.error(f"RAG FileNotFoundError: {error_msg}", exc_info=True)
-            raise HTTPException(
-                status_code=503, 
-                detail=f"Knowledge base is not properly configured. Please contact support. Details: {str(e)}"
-            )
-        except Exception as e:
-            # Other retrieval errors
-            error_msg = f"Document retrieval failed: {str(e)}"
-            logger.error(f"RAG retrieval error: {error_msg}", exc_info=True)
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to retrieve relevant documents: {str(e)}"
-            )
-        
-        # 2. Build context
-        if not docs:
-            context = "No specific documents found."
-            logger.warning("RAG: No documents retrieved for query")
-        else:
-            context = "\n\n".join(
-                f"Content: {doc.page_content}"
-                for doc in docs
-            )
-        
-        # 3. Build prompt
-        prompt = build_rag_prompt(context, req.message)
-        
-        # 4. Call LLM (reuse existing Groq logic)
-        messages = []
-        for r, c in past_messages:
-            messages.append({"role": r, "content": c})
-        messages.append({"role": "user", "content": prompt})
-        
-        # We use call_preferred_api 'groq' specifically as requested
-        try:
-            logger.info("RAG: Calling Groq API")
-            response = await call_preferred_api(
-                model="groq",
-                messages=messages,
-                max_tokens=700,
-                temperature=0.2
-            )
-        except Exception as e:
-            error_msg = f"LLM API call failed: {str(e)}"
-            logger.error(f"RAG LLM error: {error_msg}", exc_info=True)
-            raise HTTPException(
-                status_code=502,
-                detail=f"Failed to generate response from AI model: {str(e)}"
-            )
-        
-        reply = extract_text_from_model_response(response)
-        
-        # Save assistant message
-        await safe_save_message(conv_id, "assistant", reply, "groq")
-        
-        logger.info("RAG: Response generated successfully")
-        return {
-            "reply": reply,
-            "conversation_id": conv_id
+    logger.info("RAG endpoint called but RAG is disabled - returning 503")
+    
+    raise HTTPException(
+        status_code=503,
+        detail={
+            "error": "rag_temporarily_disabled",
+            "message": "RAG functionality is temporarily disabled due to deployment resource constraints.",
+            "suggestion": "Please use the /chat endpoint for general chatbot queries. RAG will be re-enabled on a suitable platform.",
+            "status": "service_unavailable"
         }
-    except HTTPException:
-        # Re-raise HTTP exceptions as-is
-        raise
-    except Exception as e:
-        # Catch-all for unexpected errors - log full details
-        logger.error(f"RAG: Unexpected error in chat endpoint: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=500, 
-            detail=f"An unexpected error occurred: {str(e)}. Check server logs for details."
-        )
+    )
 
 
 

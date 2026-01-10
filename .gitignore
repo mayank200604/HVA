@@ -1,5 +1,7 @@
+####################################
 # Logs
-logs
+####################################
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -7,29 +9,41 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Dependencies
-node_modules
-dist
-dist-ssr
+####################################
+# Node / Frontend
+####################################
+node_modules/
+dist/
+dist-ssr/
 *.local
 
-# Editor directories and files
+####################################
+# Vite environment files
+####################################
+.env
+.env.local
+.env.*.local
+
+####################################
+# Editor / IDE
+####################################
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
+.idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
 
-# Vite
-.env
-.env.local
-.env.*.local
-
-# Python
+####################################
+# Python cache / build
+####################################
 __pycache__/
 *.py[cod]
 *$py.class
@@ -37,12 +51,9 @@ __pycache__/
 .Python
 build/
 develop-eggs/
-dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
 parts/
 sdist/
 var/
@@ -54,71 +65,78 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+####################################
 # Virtual environments
+####################################
 venv/
 ENV/
 env/
-.venv
+.venv/
 
-# IDE
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Python cache in app directory
-app/__pycache__/
-app/*.pyc
-app/.Python
-
-# Flask
+####################################
+# Flask / FastAPI
+####################################
 instance/
 .webassets-cache
 
+####################################
 # Testing
+####################################
 .pytest_cache/
 .coverage
 htmlcov/
 
-# Misc
+####################################
+# Cache / Temp
+####################################
 .cache/
 
-# Explicit app env
+####################################
+# Explicit app env files
+####################################
 app/.env
 
-# Firebase private key file
+####################################
+# Firebase (PRIVATE keys only)
+####################################
 firebase_service_account.json
 app/firebase_service_account.json
+.firebase/
+firebase-debug.log
 
-# Database files (SQLite)
+####################################
+# Databases (GENERAL)
+####################################
 *.db
 *.sqlite
 *.sqlite3
-!chroma.sqlite3
-!app/rag/chroma_db/chroma.sqlite3
-!app/rag/chroma_db/chroma.sqlite3
-app/*.db
-app/*.sqlite
-app/*.sqlite3
 
-# Generated images
+####################################
+# ❗ RAG / Chroma Vector DB (IMPORTANT)
+# Allow FULL Chroma directory
+####################################
+!app/rag/chroma_db/
+!app/rag/chroma_db/**
+!app/rag/chroma_db/chroma.sqlite3
+
+####################################
+# Generated images / outputs
+####################################
 generated_images/
 app/generated_images/
 *.thumb.jpg
 *.thumb.png
 
-# Test files (optional - uncomment if you want to ignore test scripts)
+####################################
+# Optional test scripts
+####################################
 # **/test_*.py
 # **/check_*.py
 # **/cleanup_*.py
 
-# Temporary documentation files
+####################################
+# Temporary documentation
+####################################
 *_FIX.md
 *_ISSUE.md
 TEMP_*.md
-
-.firebase/
-firebase-debug.log

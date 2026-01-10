@@ -1,8 +1,12 @@
+import logging
 from rag.vectordb import get_vectorstore
+
+logger = logging.getLogger(__name__)
 
 def retrieve_documents(query, k=5, fetch_k=15, verbose=False):
     """
     Retrieve relevant documents using MMR (Maximal Marginal Relevance).
+    Production-safe with detailed error logging.
     
     Args:
         query: Search query
@@ -13,7 +17,12 @@ def retrieve_documents(query, k=5, fetch_k=15, verbose=False):
     Returns:
         List of retrieved documents
     """
-    vectorstore = get_vectorstore()
+    try:
+        vectorstore = get_vectorstore()
+        logger.info(f"Retrieving documents for query: '{query[:50]}...'")
+    except Exception as e:
+        logger.error(f"Failed to load vectorstore: {str(e)}", exc_info=True)
+        raise
     
     try:
         # Use MMR for diversity
@@ -22,11 +31,16 @@ def retrieve_documents(query, k=5, fetch_k=15, verbose=False):
             k=k,
             fetch_k=fetch_k
         )
+        logger.info(f"MMR search returned {len(results)} documents")
     except Exception as e:
         # Fallback to regular similarity search
-        if verbose:
-            print(f"MMR failed ({e}), using similarity search")
-        results = vectorstore.similarity_search(query, k=k)
+        logger.warning(f"MMR search failed ({str(e)}), falling back to similarity search")
+        try:
+            results = vectorstore.similarity_search(query, k=k)
+            logger.info(f"Similarity search returned {len(results)} documents")
+        except Exception as e2:
+            logger.error(f"Similarity search also failed: {str(e2)}", exc_info=True)
+            raise
     
     if verbose and results:
         sources = [doc.metadata.get('source', 'unknown') for doc in results]

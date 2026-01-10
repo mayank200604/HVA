@@ -830,6 +830,7 @@ async def rag_chat_endpoint(req: RagRequest):
     """
     RAG-based chat endpoint.
     Retrieves info from rag_docs and answers using Groq.
+    Production-safe with detailed error logging.
     """
     try:
         # Handle conversation ID
@@ -852,11 +853,31 @@ async def rag_chat_endpoint(req: RagRequest):
             logger.warning(f"Failed to load RAG history: {e}")
 
         # 1. Retrieve documents (run in threadpool to avoid blocking event loop)
-        docs = await asyncio.to_thread(retrieve_documents, req.message)
+        try:
+            logger.info(f"RAG: Retrieving documents for query: '{req.message[:50]}...'")
+            docs = await asyncio.to_thread(retrieve_documents, req.message)
+            logger.info(f"RAG: Retrieved {len(docs)} documents")
+        except FileNotFoundError as e:
+            # Specific error for missing database
+            error_msg = f"Knowledge base not available: {str(e)}"
+            logger.error(f"RAG FileNotFoundError: {error_msg}", exc_info=True)
+            raise HTTPException(
+                status_code=503, 
+                detail=f"Knowledge base is not properly configured. Please contact support. Details: {str(e)}"
+            )
+        except Exception as e:
+            # Other retrieval errors
+            error_msg = f"Document retrieval failed: {str(e)}"
+            logger.error(f"RAG retrieval error: {error_msg}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to retrieve relevant documents: {str(e)}"
+            )
         
         # 2. Build context
         if not docs:
             context = "No specific documents found."
+            logger.warning("RAG: No documents retrieved for query")
         else:
             context = "\n\n".join(
                 f"Content: {doc.page_content}"
@@ -873,25 +894,43 @@ async def rag_chat_endpoint(req: RagRequest):
         messages.append({"role": "user", "content": prompt})
         
         # We use call_preferred_api 'groq' specifically as requested
-        response = await call_preferred_api(
-            model="groq",
-            messages=messages,
-            max_tokens=700,
-            temperature=0.2
-        )
+        try:
+            logger.info("RAG: Calling Groq API")
+            response = await call_preferred_api(
+                model="groq",
+                messages=messages,
+                max_tokens=700,
+                temperature=0.2
+            )
+        except Exception as e:
+            error_msg = f"LLM API call failed: {str(e)}"
+            logger.error(f"RAG LLM error: {error_msg}", exc_info=True)
+            raise HTTPException(
+                status_code=502,
+                detail=f"Failed to generate response from AI model: {str(e)}"
+            )
         
         reply = extract_text_from_model_response(response)
         
         # Save assistant message
         await safe_save_message(conv_id, "assistant", reply, "groq")
-
+        
+        logger.info("RAG: Response generated successfully")
         return {
             "reply": reply,
             "conversation_id": conv_id
         }
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
     except Exception as e:
-        logger.error(f"RAG Error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An internal server error occurred while processing your request.")
+        # Catch-all for unexpected errors - log full details
+        logger.error(f"RAG: Unexpected error in chat endpoint: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500, 
+            detail=f"An unexpected error occurred: {str(e)}. Check server logs for details."
+        )
+
 
 
 @app.get("/conversations")

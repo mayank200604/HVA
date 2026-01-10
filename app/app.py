@@ -56,8 +56,8 @@ GEMINI_API_URL = os.getenv("GEMINI_API_URL", "https://generativelanguage.googlea
 DEFAULT_GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 HF_API_KEY = os.getenv("HF_API_KEY")
-HF_API_URL = os.getenv("HF_API_URL", "https://router.huggingface.co")
-HF_MODEL = os.getenv("HF_MODEL", "black-forest-labs/FLUX.1-dev")
+HF_API_URL = os.getenv("HF_API_URL", "https://api-inference.huggingface.co/models")
+HF_MODEL = os.getenv("HF_MODEL", "stabilityai/stable-diffusion-xl-base-1.0")
 
 
 # Use tempfile.gettempdir() for cross-platform compatibility (Windows/Linux/Mac)

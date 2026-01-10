@@ -92,6 +92,26 @@ app.add_middleware(
 app.mount("/generated_images", StaticFiles(directory=IMAGE_DIR), name="generated_images")
 
 # --- Startup Event: Pre-load RAG components ---
+@app.on_event("startup")
+async def startup_event():
+    """
+    Fast startup check: Verify RAG database file exists.
+    This avoids loading the heavy embedding model during startup.
+    """
+    import os
+    
+    # Path to the actual SQLite file typically used by Chroma (modern versions)
+    # Adjust if using older Chroma versions or different structure
+    base_path = os.path.dirname(__file__)
+    chroma_path = os.path.join(base_path, "rag", "chroma_db", "chroma.sqlite3")
+    
+    if os.path.exists(chroma_path):
+        size_mb = os.path.getsize(chroma_path) / (1024 * 1024)
+        logger.info(f"✅ RAG Database file found at '{chroma_path}' ({size_mb:.2f} MB)")
+    else:
+        logger.error(f"❌ RAG Database file NOT found at '{chroma_path}'.")
+        logger.error("CRITICAL: Ensure 'app/rag/chroma_db/chroma.sqlite3' is committed and deployed.")
+
 
 # --- Pydantic Models ---
 class Message(BaseModel):

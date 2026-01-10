@@ -97,6 +97,9 @@ app/firebase_service_account.json
 *.db
 *.sqlite
 *.sqlite3
+!chroma.sqlite3
+!app/rag/chroma_db/chroma.sqlite3
+!app/rag/chroma_db/chroma.sqlite3
 app/*.db
 app/*.sqlite
 app/*.sqlite3

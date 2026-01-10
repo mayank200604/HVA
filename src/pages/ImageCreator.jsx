@@ -12,6 +12,7 @@ export default function ImageCreator() {
   const navigate = useNavigate();
   const location = useLocation();
   const currentChatId = location.state?.currentChatId || null;
+  const API_BASE_URL = import.meta.env.VITE_API_URL || "https://hva-ed6w.onrender.com";
 
   async function generateImage() {
     setError("");
@@ -23,7 +24,7 @@ export default function ImageCreator() {
     setPreviewUrl(null);
 
     try {
-      const resp = await fetch(`${import.meta.env.VITE_API_URL}/generate_image`, {
+      const resp = await fetch(`${API_BASE_URL}/generate_image`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -51,7 +52,7 @@ export default function ImageCreator() {
 
       // If url is relative, convert to full URL with base64 if needed
       if (url && url.startsWith("/generated_images/")) {
-        url = `${import.meta.env.VITE_API_URL}${url}`;
+        url = `${API_BASE_URL}${url}`;
       }
 
       if (!url) throw new Error("No image returned from server");

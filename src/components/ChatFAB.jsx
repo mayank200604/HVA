@@ -86,7 +86,8 @@ const ChatFAB = () => {
         setIsLoading(true);
 
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/rag/chat`, {
+            const API_BASE_URL = import.meta.env.VITE_API_URL || "https://hva-ed6w.onrender.com";
+            const response = await fetch(`${API_BASE_URL}/rag/chat`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

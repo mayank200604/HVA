@@ -32,6 +32,27 @@ def get_embedding_model():
         logger.error(error_msg, exc_info=True)
         raise RuntimeError(error_msg) from e
 
+
+def preload_embedding_model():
+    """
+    Preload the embedding model at application startup.
+    This prevents timeout issues on the first RAG request.
+    
+    Call this from FastAPI's @app.on_event("startup") to ensure
+    the model is loaded before any requests arrive.
+    """
+    logger.info("🔄 Preloading embedding model at startup...")
+    try:
+        model = get_embedding_model()
+        # Test the model to ensure it's fully loaded
+        test_embedding = model.embed_query("test")
+        logger.info(f"✅ Embedding model preloaded successfully (dimension: {len(test_embedding)})")
+        return True
+    except Exception as e:
+        logger.error(f"❌ Failed to preload embedding model: {str(e)}", exc_info=True)
+        return False
+
+
 def get_embeddings(chunked_docs):
     embedding_model = get_embedding_model()
     

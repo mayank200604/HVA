@@ -95,22 +95,50 @@ app.mount("/generated_images", StaticFiles(directory=IMAGE_DIR), name="generated
 @app.on_event("startup")
 async def startup_event():
     """
-    Fast startup check: Verify RAG database file exists.
-    This avoids loading the heavy embedding model during startup.
+    Preload RAG components at startup to prevent timeout-based 502 errors.
+    
+    This ensures the embedding model and vectorstore are fully initialized
+    BEFORE any requests arrive, preventing cold-start timeouts on Render.
     """
     import os
     
-    # Path to the actual SQLite file typically used by Chroma (modern versions)
-    # Adjust if using older Chroma versions or different structure
+    logger.info("🚀 Starting RAG component initialization...")
+    
+    # 1. Verify database file exists
     base_path = os.path.dirname(__file__)
     chroma_path = os.path.join(base_path, "rag", "chroma_db", "chroma.sqlite3")
     
-    if os.path.exists(chroma_path):
-        size_mb = os.path.getsize(chroma_path) / (1024 * 1024)
-        logger.info(f"✅ RAG Database file found at '{chroma_path}' ({size_mb:.2f} MB)")
-    else:
+    if not os.path.exists(chroma_path):
         logger.error(f"❌ RAG Database file NOT found at '{chroma_path}'.")
         logger.error("CRITICAL: Ensure 'app/rag/chroma_db/chroma.sqlite3' is committed and deployed.")
+        logger.warning("⚠️  /rag/chat endpoint will fail until database is available")
+        return
+    
+    size_mb = os.path.getsize(chroma_path) / (1024 * 1024)
+    logger.info(f"✅ RAG Database file found ({size_mb:.2f} MB)")
+    
+    # 2. Preload embedding model (CRITICAL - prevents first-request timeout)
+    try:
+        from rag.embeddings import preload_embedding_model
+        success = await asyncio.to_thread(preload_embedding_model)
+        if not success:
+            logger.warning("⚠️  Embedding model preload had issues, but continuing...")
+    except Exception as e:
+        logger.error(f"❌ Failed to preload embedding model: {str(e)}")
+        logger.warning("⚠️  First /rag/chat request may be slow or timeout")
+    
+    # 3. Preload vectorstore (optional but recommended)
+    try:
+        from rag.vectordb import get_vectorstore
+        logger.info("🔄 Preloading vectorstore...")
+        vs = await asyncio.to_thread(get_vectorstore)
+        count = vs._collection.count()
+        logger.info(f"✅ Vectorstore preloaded with {count} documents")
+    except Exception as e:
+        logger.error(f"❌ Failed to preload vectorstore: {str(e)}")
+        logger.warning("⚠️  First /rag/chat request may be slow or timeout")
+    
+    logger.info("🎉 RAG initialization complete - ready to serve requests!")
 
 
 # --- Pydantic Models ---

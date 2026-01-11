@@ -1,5 +1,9 @@
 import asyncio
 import os
+
+# IMPORTANT: Fix Keras 3 compatibility issue BEFORE importing any transformers/embeddings
+os.environ['TF_USE_LEGACY_KERAS'] = '1'
+
 import uuid
 import tempfile
 from io import BytesIO
@@ -33,10 +37,6 @@ logging.basicConfig(
 logger = logging.getLogger("hva_app")
 
 from storage import init_db, create_conversation, save_message, load_recent_messages, get_all_conversations, get_conversation_messages
-# RAG imports disabled to prevent deployment failures due to storage limits
-# from rag.retriever import retrieve_documents
-# from rag.prompt import build_rag_prompt
-
 
 # Debug: print the absolute path of the running file
 logger.info(f"🔥 RUNNING FILE: {os.path.abspath(__file__)}")
@@ -46,6 +46,26 @@ init_db()
 
 # Load environment variables from .env file in the same directory as this script
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
+
+# Check if RAG should be enabled (localhost only, not on deployment)
+ENABLE_RAG = os.getenv("ENABLE_RAG", "false").lower() == "true"
+
+# Conditionally import RAG components ONLY if enabled (localhost)
+if ENABLE_RAG:
+    try:
+        from rag.retriever import retrieve_documents
+        from rag.prompt import build_rag_prompt
+        from rag.embeddings import preload_embedding_model
+        logger.info("✅ RAG imports successful - RAG ENABLED for localhost")
+    except ImportError as e:
+        logger.warning(f"⚠️ RAG imports failed: {e} - RAG will be disabled")
+        ENABLE_RAG = False
+else:
+    logger.info("ℹ️ RAG is DISABLED (deployment mode)")
+    # Define dummy functions to prevent errors
+    retrieve_documents = None
+    build_rag_prompt = None
+    preload_embedding_model = None
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_API_URL = os.getenv("GROQ_API_URL", "https://api.groq.com/openai/v1/chat/completions")
@@ -92,19 +112,36 @@ app.add_middleware(
 # Mount static files directory for generated images
 app.mount("/generated_images", StaticFiles(directory=IMAGE_DIR), name="generated_images")
 
-# --- Startup Event: RAG Disabled ---
+# --- Startup Event: Conditional RAG Preloading ---
 @app.on_event("startup")
 async def startup_event():
     """
-    RAG components are temporarily disabled to prevent deployment failures on Render.
-    
-    The /rag/chat endpoint will return a 503 Service Unavailable response.
-    All chatbot functionality (/chat, conversations, etc.) remains fully operational.
+    Preload RAG components at startup ONLY if ENABLE_RAG=true (localhost).
+    This prevents slow first requests by loading the embedding model during startup.
     """
-    logger.info("� Application startup - RAG functionality is DISABLED")
+    logger.info("🚀 Application startup...")
+    
+    if ENABLE_RAG and preload_embedding_model is not None:
+        logger.info("🔄 RAG is ENABLED - Preloading embedding model...")
+        try:
+            import asyncio
+            loop = asyncio.get_event_loop()
+            success = await loop.run_in_executor(None, preload_embedding_model)
+            
+            if success:
+                logger.info("✅ RAG embedding model preloaded successfully")
+                logger.info("✅ RAG functionality is READY for localhost")
+            else:
+                logger.warning("⚠️  RAG embedding model preload failed - first request may be slow")
+        except Exception as e:
+            logger.error(f"❌ Failed to preload RAG components: {e}", exc_info=True)
+            logger.warning("⚠️  RAG may not work properly - check logs")
+    else:
+        logger.info("ℹ️  RAG is DISABLED - Skipping RAG initialization (deployment mode)")
+        logger.info("⚠️  /rag/chat endpoint will return 503 Service Unavailable")
+    
     logger.info("✅ Chatbot endpoints are fully operational")
-    logger.info("⚠️  /rag/chat endpoint will return 503 Service Unavailable")
-    logger.info("🎉 Startup complete - ready to serve chatbot requests!")
+    logger.info("🎉 Startup complete - ready to serve requests!")
 
 
 # --- Pydantic Models ---
@@ -822,24 +859,90 @@ class RagRequest(BaseModel):
 @app.post("/rag/chat")
 async def rag_chat_endpoint(req: RagRequest):
     """
-    RAG functionality is temporarily disabled due to deployment constraints.
-    
-    This endpoint returns a 503 Service Unavailable response with a clear message.
-    No embedding models, vector databases, or RAG components are initialized.
-    
-    For chatbot functionality, please use the /chat endpoint instead.
+    RAG-powered chat endpoint with knowledge base retrieval.
+    Only works when ENABLE_RAG=true (localhost mode).
     """
-    logger.info("RAG endpoint called but RAG is disabled - returning 503")
+    if not ENABLE_RAG:
+        logger.info("RAG endpoint called but RAG is DISABLED (deployment mode)")
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "rag_disabled",
+                "message": "RAG functionality is disabled in deployment mode.",
+                "suggestion": "Please use the /chat endpoint for general chatbot queries."
+            }
+        )
     
-    raise HTTPException(
-        status_code=503,
-        detail={
-            "error": "rag_temporarily_disabled",
-            "message": "RAG functionality is temporarily disabled due to deployment resource constraints.",
-            "suggestion": "Please use the /chat endpoint for general chatbot queries. RAG will be re-enabled on a suitable platform.",
-            "status": "service_unavailable"
+    if not req.message or not req.message.strip():
+        raise HTTPException(status_code=400, detail="Message is required")
+    
+    # Create or get conversation ID
+    conversation_id = req.conversation_id or f"rag-{uuid.uuid4()}"
+    
+    try:
+        # Ensure conversation exists in DB
+        await asyncio.to_thread(create_conversation, conversation_id, req.user_id)
+    except Exception as e:
+        logger.warning(f"Failed to create conversation: {e}")
+    
+    # Save user message
+    await safe_save_message(conversation_id, "user", req.message, None)
+    
+    try:
+        # Retrieve relevant documents from vector DB
+        logger.info(f"RAG: Retrieving documents for query: '{req.message[:50]}...'")
+        docs = await asyncio.to_thread(retrieve_documents, req.message, k=5, verbose=False)
+        
+        if not docs:
+            logger.warning("RAG: No documents retrieved from vector store")
+            raise HTTPException(
+                status_code=500,
+                detail="I encountered an issue connecting to the knowledge base. Please try again."
+            )
+        
+        # Build context from retrieved documents
+        from rag.prompt import format_context
+        context = format_context(docs)
+        rag_prompt = build_rag_prompt(context, req.message)
+        
+        logger.info(f"RAG: Retrieved {len(docs)} documents, context length: {len(context)} chars")
+        
+        # Build messages for API call
+        messages = [
+            {"role": "system", "content": "You are a helpful career guidance assistant with access to a knowledge base."},
+            {"role": "user", "content": rag_prompt}
+        ]
+        
+        # Call Groq API with RAG prompt
+        response = await call_groq_api(
+            messages,
+            max_tokens=800,
+            temperature=0.3,  # Lower temperature for factual RAG responses
+            top_p=0.9
+        )
+        
+        # Extract response text
+        answer = extract_text_from_model_response(response)
+        
+        if not answer or not answer.strip():
+            answer = "I couldn't generate a proper response. Please try rephrasing your question."
+        
+        # Save assistant response
+        await safe_save_message(conversation_id, "assistant", answer, "groq-rag")
+        
+        return {
+            "response": answer,
+            "conversation_id": conversation_id,
+            "sources_count": len(docs)
         }
-    )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"RAG error: {e}", exc_info=True)
+        error_msg = "I encountered an issue processing your request. Please try again."
+        await safe_save_message(conversation_id, "assistant", error_msg, None)
+        raise HTTPException(status_code=500, detail=error_msg)
 
 
 

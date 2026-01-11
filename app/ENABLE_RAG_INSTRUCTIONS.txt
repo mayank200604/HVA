@@ -1,0 +1,5 @@
+# IMPORTANT: Add this to your .env file in the app folder
+ENABLE_RAG=true
+
+# This enables RAG functionality on localhost only.
+# For deployment, set this to false or remove it entirely.

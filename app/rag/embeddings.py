@@ -1,4 +1,7 @@
 import logging
+import os
+# Fix Keras 3 compatibility issue with transformers
+os.environ['TF_USE_LEGACY_KERAS'] = '1'
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
 logger = logging.getLogger(__name__)

@@ -196,7 +196,22 @@ export default function ChatAppPage() {
   const loadStoredImages = () => {
     if (!currentUser) return;
     try {
-      const savedImages = JSON.parse(localStorage.getItem(getUserStorageKey("generated_images")) || "[]");
+      const userKey = getUserStorageKey("generated_images");
+      const savedImages = JSON.parse(localStorage.getItem(userKey) || "[]");
+
+      // MIGRATION: If no images in user-specific key, check old global key
+      if (savedImages.length === 0) {
+        const oldImages = JSON.parse(localStorage.getItem("generated_images") || "[]");
+        if (oldImages.length > 0) {
+          console.log(`Migrating ${oldImages.length} images from old storage to user-specific storage`);
+          localStorage.setItem(userKey, JSON.stringify(oldImages));
+          // Optionally remove old key after migration
+          localStorage.removeItem("generated_images");
+          setStoredImages(oldImages);
+          return;
+        }
+      }
+
       setStoredImages(savedImages);
     } catch (err) {
       console.error("Error loading images from localStorage:", err);
@@ -1111,7 +1126,7 @@ export default function ChatAppPage() {
                   onClick={() => {
                     // Delete image
                     const updated = storedImages.filter(img => img.id !== selectedImage.id);
-                    localStorage.setItem("generated_images", JSON.stringify(updated));
+                    localStorage.setItem(getUserStorageKey("generated_images"), JSON.stringify(updated));
                     setStoredImages(updated);
                     setSelectedImage(null);
                   }}

@@ -1,8 +1,10 @@
 // src/pages/ImageCreator.jsx
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function ImageCreator() {
+  const { currentUser } = useAuth();
   const [prompt, setPrompt] = useState("");
   const [size, setSize] = useState("1024x1024");
   const [style, setStyle] = useState("photorealistic");
@@ -13,6 +15,9 @@ export default function ImageCreator() {
   const location = useLocation();
   const currentChatId = location.state?.currentChatId || null;
   const API_BASE_URL = import.meta.env.VITE_API_URL;
+
+  // User-specific localStorage key
+  const getUserStorageKey = (key) => `${key}_${currentUser?.uid || 'anonymous'}`;
 
   async function generateImage() {
     setError("");
@@ -69,7 +74,7 @@ export default function ImageCreator() {
   function addToChat() {
     if (!previewUrl) return;
     try {
-      const existing = JSON.parse(localStorage.getItem("generated_images") || "[]");
+      const existing = JSON.parse(localStorage.getItem(getUserStorageKey("generated_images")) || "[]");
       const entry = {
         id: Date.now().toString(),
         url: previewUrl,
@@ -77,7 +82,7 @@ export default function ImageCreator() {
         created_at: new Date().toISOString(),
       };
       existing.unshift(entry);
-      localStorage.setItem("generated_images", JSON.stringify(existing.slice(0, 30))); // keep last 30
+      localStorage.setItem(getUserStorageKey("generated_images"), JSON.stringify(existing.slice(0, 30))); // keep last 30
       // Navigate back to chat with current chat ID to preserve chat context
       navigate("/app", { state: { newImage: entry, currentChatId: currentChatId } });
     } catch (err) {

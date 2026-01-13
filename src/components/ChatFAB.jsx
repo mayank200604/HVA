@@ -87,6 +87,11 @@ const ChatFAB = () => {
 
         try {
             const API_BASE_URL = import.meta.env.VITE_API_URL;
+
+            // Create an AbortController for timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+
             const response = await fetch(`${API_BASE_URL}/rag/chat`, {
                 method: 'POST',
                 headers: {
@@ -97,10 +102,53 @@ const ChatFAB = () => {
                     conversation_id: conversationId,
                     user_id: currentUser?.uid  // Send user_id to backend
                 }),
+                signal: controller.signal
             });
 
+            clearTimeout(timeoutId);
+
+            // Handle specific status codes
+            if (response.status === 503) {
+                const errorData = await response.json();
+
+                // Check if RAG is not loaded yet (first time)
+                if (errorData.detail?.error === 'rag_not_loaded') {
+                    setMessages((prev) => [
+                        ...prev,
+                        {
+                            role: 'assistant',
+                            content: '🔄 **Knowledge base is starting up...**\n\nThis is the first time you\'re using RAG. Please wait 10-15 seconds and try your question again.\n\n💡 *This only happens once - future queries will be instant!*'
+                        }
+                    ]);
+                    return;
+                }
+
+                // Check if RAG is loading
+                if (errorData.detail?.error === 'rag_loading') {
+                    setMessages((prev) => [
+                        ...prev,
+                        {
+                            role: 'assistant',
+                            content: '⚡ **Knowledge base is loading...**\n\nPlease wait a moment and try again. This is a one-time delay.'
+                        }
+                    ]);
+                    return;
+                }
+
+                // RAG disabled
+                setMessages((prev) => [
+                    ...prev,
+                    {
+                        role: 'assistant',
+                        content: '**Error**: RAG is disabled. Please use the regular chat instead.'
+                    }
+                ]);
+                return;
+            }
+
             if (!response.ok) {
-                throw new Error('Network response was not ok');
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.detail || 'Network response was not ok');
             }
 
             const data = await response.json();
@@ -112,15 +160,22 @@ const ChatFAB = () => {
 
             const assistantMsg = {
                 role: 'assistant',
-                content: data.reply
+                content: data.response || data.reply  // Try both field names for compatibility
             };
 
             setMessages((prev) => [...prev, assistantMsg]);
         } catch (error) {
             console.error('Error fetching chat response:', error);
+
+            let errorMessage = '**Error**: I encountered an issue connecting to the knowledge base. Please try again.';
+
+            if (error.name === 'AbortError') {
+                errorMessage = '⏱️ **Request timed out**\n\nThe knowledge base is taking longer than expected to load. Please try again in a moment.';
+            }
+
             setMessages((prev) => [
                 ...prev,
-                { role: 'assistant', content: '**Error**: I encountered an issue connecting to the knowledge base. Please try again.' }
+                { role: 'assistant', content: errorMessage }
             ]);
         } finally {
             setIsLoading(false);

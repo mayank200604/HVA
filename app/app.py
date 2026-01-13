@@ -1,9 +1,5 @@
 import asyncio
 import os
-
-# IMPORTANT: Fix Keras 3 compatibility issue BEFORE importing any transformers/embeddings
-os.environ['TF_USE_LEGACY_KERAS'] = '1'
-
 import uuid
 import tempfile
 from io import BytesIO
@@ -889,6 +885,66 @@ async def rag_chat_endpoint(req: RagRequest):
     await safe_save_message(conversation_id, "user", req.message, None)
     
     try:
+        # Check RAG status before attempting to use it
+        from rag.vectordb import get_rag_status
+        
+        status = get_rag_status()
+        
+        # If RAG is not loaded yet, trigger background loading and return 503
+        if (status["embedding"]["status"] == "not_loaded" or 
+            status["vectorstore"]["status"] == "not_loaded"):
+            
+            # Trigger loading in background (non-blocking)
+            async def load_rag_background():
+                try:
+                    logger.info("Starting background RAG loading...")
+                    await asyncio.to_thread(retrieve_documents, "initialization test", k=1)
+                    logger.info("✅ RAG loaded successfully in background")
+                except Exception as e:
+                    logger.error(f"Background RAG loading failed: {e}")
+            
+            # Start loading task (fire and forget)
+            asyncio.create_task(load_rag_background())
+            
+            error_msg = "🔄 RAG system is starting up. Please retry your question in 10-15 seconds."
+            await safe_save_message(conversation_id, "assistant", error_msg, None)
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "error": "rag_not_loaded",
+                    "message": error_msg,
+                    "status": status,
+                    "retry_after": 15  # Suggest retry after 15 seconds
+                }
+            )
+        
+        # If RAG is still loading, return informative error
+        if status["embedding"]["status"] == "loading" or status["vectorstore"]["status"] == "loading":
+            error_msg = "RAG system is currently loading. Please wait a moment and try again."
+            await safe_save_message(conversation_id, "assistant", error_msg, None)
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "error": "rag_loading",
+                    "message": error_msg,
+                    "status": status,
+                    "retry_after": 10
+                }
+            )
+        
+        # If RAG failed to load, return error
+        if status["embedding"]["status"] == "failed" or status["vectorstore"]["status"] == "failed":
+            error_msg = "RAG system failed to initialize. Please check server logs."
+            await safe_save_message(conversation_id, "assistant", error_msg, None)
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": "rag_failed",
+                    "message": error_msg,
+                    "status": status
+                }
+            )
+        
         # Retrieve relevant documents from vector DB
         logger.info(f"RAG: Retrieving documents for query: '{req.message[:50]}...'")
         docs = await asyncio.to_thread(retrieve_documents, req.message, k=5, verbose=False)
@@ -957,4 +1013,34 @@ def list_conversations(user_id: str):
 @app.get("/conversation/{conversation_id}")
 def get_conversation(conversation_id: str):
     return get_conversation_messages(conversation_id)
+
+
+# --- RAG Status Endpoint ---
+
+@app.get("/rag/status")
+async def rag_status():
+    """
+    Check RAG system status.
+    Returns loading state of embeddings and vector database.
+    """
+    if not ENABLE_RAG:
+        return {
+            "enabled": False,
+            "message": "RAG is disabled (deployment mode)"
+        }
+    
+    try:
+        from rag.vectordb import get_rag_status
+        status = get_rag_status()
+        status["enabled"] = True
+        return status
+    except Exception as e:
+        logger.error(f"Error getting RAG status: {e}", exc_info=True)
+        return {
+            "enabled": True,
+            "rag_ready": False,
+            "error": str(e)
+        }
+
+
 

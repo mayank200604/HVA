@@ -35,7 +35,7 @@ logger = logging.getLogger("hva_app")
 from storage import init_db, create_conversation, save_message, load_recent_messages, get_all_conversations, get_conversation_messages
 
 # Debug: print the absolute path of the running file
-logger.info(f"🔥 RUNNING FILE: {os.path.abspath(__file__)}")
+logger.info(f"[STARTUP] RUNNING FILE: {os.path.abspath(__file__)}")
 
 init_db()
 
@@ -52,12 +52,12 @@ if ENABLE_RAG:
         from rag.retriever import retrieve_documents
         from rag.prompt import build_rag_prompt
         from rag.embeddings import preload_embedding_model
-        logger.info("✅ RAG imports successful - RAG ENABLED for localhost")
+        logger.info("[OK] RAG imports successful - RAG ENABLED for localhost")
     except ImportError as e:
-        logger.warning(f"⚠️ RAG imports failed: {e} - RAG will be disabled")
+        logger.warning(f"[WARNING] RAG imports failed: {e} - RAG will be disabled")
         ENABLE_RAG = False
 else:
-    logger.info("ℹ️ RAG is DISABLED (deployment mode)")
+    logger.info("[INFO] RAG is DISABLED (deployment mode)")
     # Define dummy functions to prevent errors
     retrieve_documents = None
     build_rag_prompt = None
@@ -72,8 +72,8 @@ GEMINI_API_URL = os.getenv("GEMINI_API_URL", "https://generativelanguage.googlea
 DEFAULT_GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 HF_API_KEY = os.getenv("HF_API_KEY")
-HF_API_URL = os.getenv("HF_API_URL", "https://api-inference.huggingface.co/models")
-HF_MODEL = os.getenv("HF_MODEL", "stabilityai/stable-diffusion-xl-base-1.0")
+HF_API_URL = os.getenv("HF_API_URL", "https://router.huggingface.co")
+HF_MODEL = os.getenv("HF_MODEL", "black-forest-labs/FLUX.1-schnell")
 
 
 # Use tempfile.gettempdir() for cross-platform compatibility (Windows/Linux/Mac)
@@ -115,29 +115,29 @@ async def startup_event():
     Preload RAG components at startup ONLY if ENABLE_RAG=true (localhost).
     This prevents slow first requests by loading the embedding model during startup.
     """
-    logger.info("🚀 Application startup...")
+    logger.info("[STARTUP] Application startup...")
     
     if ENABLE_RAG and preload_embedding_model is not None:
-        logger.info("🔄 RAG is ENABLED - Preloading embedding model...")
+        logger.info("[RAG] RAG is ENABLED - Preloading embedding model...")
         try:
             import asyncio
             loop = asyncio.get_event_loop()
             success = await loop.run_in_executor(None, preload_embedding_model)
             
             if success:
-                logger.info("✅ RAG embedding model preloaded successfully")
-                logger.info("✅ RAG functionality is READY for localhost")
+                logger.info("[OK] RAG embedding model preloaded successfully")
+                logger.info("[OK] RAG functionality is READY for localhost")
             else:
-                logger.warning("⚠️  RAG embedding model preload failed - first request may be slow")
+                logger.warning("[WARNING] RAG embedding model preload failed - first request may be slow")
         except Exception as e:
-            logger.error(f"❌ Failed to preload RAG components: {e}", exc_info=True)
-            logger.warning("⚠️  RAG may not work properly - check logs")
+            logger.error(f"[ERROR] Failed to preload RAG components: {e}", exc_info=True)
+            logger.warning("[WARNING] RAG may not work properly - check logs")
     else:
-        logger.info("ℹ️  RAG is DISABLED - Skipping RAG initialization (deployment mode)")
-        logger.info("⚠️  /rag/chat endpoint will return 503 Service Unavailable")
+        logger.info("[INFO] RAG is DISABLED - Skipping RAG initialization (deployment mode)")
+        logger.info("[WARNING] /rag/chat endpoint will return 503 Service Unavailable")
     
-    logger.info("✅ Chatbot endpoints are fully operational")
-    logger.info("🎉 Startup complete - ready to serve requests!")
+    logger.info("[OK] Chatbot endpoints are fully operational")
+    logger.info("[STARTUP] Startup complete - ready to serve requests!")
 
 
 # --- Pydantic Models ---
@@ -300,8 +300,9 @@ async def call_hf_image_api(
 
     # choose model
     model_name = model or HF_MODEL
-    # Build Hugging Face Router API URL: https://router.huggingface.co/hf-inference/models/<model>
-    url = f"{HF_API_URL}/hf-inference/models/{model_name}"
+    # Hugging Face Serverless Inference API (for image generation)
+    # The serverless inference API is at: https://api-inference.huggingface.co/models/<model-id>
+    url = f"https://api-inference.huggingface.co/models/{model_name}"
 
     if not HF_API_KEY:
         raise HTTPException(status_code=500, detail="HF_API_KEY not set or empty in environment.")
@@ -346,6 +347,8 @@ async def call_hf_image_api(
     }
 
     # 4️⃣ Call Hugging Face Inference API
+    logger.info(f"[DEBUG] Calling Hugging Face API at: {url}")
+    logger.info(f"[DEBUG] HF_API_URL: {HF_API_URL}")
     async with httpx.AsyncClient(timeout=90.0) as client:
         try:
             resp = await client.post(url, headers=headers, json=body)

@@ -870,7 +870,7 @@ export default function ChatAppPage() {
               {currentChatId ? "Chat" : "New Chat"}
             </p>
             <p className="text-xs text-slate-400 hidden sm:block">
-              Hybrid Voice Assistant · Groq · DeepSeek
+              Hybrid Voice Assistant (Phase 1)
             </p>
           </div>
         </header>

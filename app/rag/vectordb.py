@@ -127,7 +127,7 @@ def get_vectorstore():
             # Verify it has content
             try:
                 count = vectorstore._collection.count()
-                logger.info(f"✅ Vectorstore loaded with {count} documents")
+                logger.info(f"[OK] Vectorstore loaded with {count} documents")
             except Exception as e:
                 logger.warning(f"Could not verify document count: {e}")
             
@@ -150,5 +150,5 @@ def get_vectorstore():
 if __name__ == "__main__":
     print("Loading vector store...")
     vectorstore = get_vectorstore()
-    print("✅ Vector store loaded successfully")
+    print("[OK] Vector store loaded successfully")
     print(f"Number of documents: {vectorstore._collection.count()}")

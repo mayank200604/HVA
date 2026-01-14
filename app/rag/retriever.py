@@ -44,7 +44,7 @@ def retrieve_documents(query, k=5, fetch_k=15, verbose=False):
     
     if verbose and results:
         sources = [doc.metadata.get('source', 'unknown') for doc in results]
-        print(f"\n🔍 Retrieved {len(results)} documents from:")
+        print(f"\n[SEARCH] Retrieved {len(results)} documents from:")
         for source in set(sources):
             count = sources.count(source)
             print(f"  - {source} ({count} chunks)")

@@ -42,7 +42,7 @@ def init_db():
     # Add user_id column if it doesn't exist (migration for existing databases)
     try:
         cur.execute("ALTER TABLE conversations ADD COLUMN user_id TEXT")
-        print("✅ Added user_id column to conversations table")
+        print("[OK] Added user_id column to conversations table")
     except sqlite3.OperationalError:
         # Column already exists
         pass

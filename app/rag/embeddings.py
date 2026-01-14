@@ -30,7 +30,7 @@ class SentenceTransformerEmbeddings:
     def __init__(self, model_name='sentence-transformers/all-MiniLM-L6-v2', device='cpu'):
         logger.info(f"Initializing SentenceTransformer: {model_name}")
         self.model = SentenceTransformer(model_name, device=device)
-        logger.info("✅ Embedding model initialized successfully")
+        logger.info("[OK] Embedding model initialized successfully")
     
     def embed_documents(self, texts: list) -> list:
         """Embed a list of documents."""
@@ -114,8 +114,8 @@ def preload_embedding_model():
     Disabled - model loads on first request.
     Returns False to indicate no preloading.
     """
-    logger.info("⚡ RAG configured for lazy loading (model loads on first request)")
-    logger.info("💡 This prevents slow startup - first RAG request may take 2-3 seconds")
+    logger.info("[INFO] RAG configured for lazy loading (model loads on first request)")
+    logger.info("[INFO] This prevents slow startup - first RAG request may take 2-3 seconds")
     return False
 
 
@@ -155,9 +155,9 @@ if __name__ == "__main__":
     
     test_text = "This is a test sentence."
     embedding = model.embed_query(test_text)
-    print(f"✅ Single embedding dimension: {len(embedding)}")
+    print(f"[OK] Single embedding dimension: {len(embedding)}")
     
     test_texts = ["First sentence", "Second sentence"]
     embeddings = model.embed_documents(test_texts)
-    print(f"✅ Batch embeddings count: {len(embeddings)}")
-    print(f"✅ Each embedding dimension: {len(embeddings[0])}")
+    print(f"[OK] Batch embeddings count: {len(embeddings)}")
+    print(f"[OK] Each embedding dimension: {len(embeddings[0])}")

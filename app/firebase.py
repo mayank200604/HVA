@@ -13,19 +13,19 @@ try:
     if not firebase_admin._apps:
         cred = credentials.Certificate(SERVICE_ACCOUNT_PATH)
         firebase_admin.initialize_app(cred)
-        print("✅ Firebase Admin SDK initialized successfully")
+        print("[OK] Firebase Admin SDK initialized successfully")
     else:
-        print("ℹ️  Firebase Admin SDK already initialized")
+        print("[INFO] Firebase Admin SDK already initialized")
 except Exception as e:
-    print(f"❌ Error initializing Firebase: {e}")
+    print(f"[ERROR] Error initializing Firebase: {e}")
     raise
 
 # Get Firestore client
 try:
     db = firestore.client()
-    print("✅ Firestore client connected")
+    print("[OK] Firestore client connected")
 except Exception as e:
-    print(f"❌ Error connecting to Firestore: {e}")
+    print(f"[ERROR] Error connecting to Firestore: {e}")
     raise
 
 def test_firestore_connection():
@@ -34,8 +34,8 @@ def test_firestore_connection():
         # Try to access a collection (this will verify the connection)
         test_ref = db.collection('_connection_test').document('test')
         test_ref.set({'timestamp': firestore.SERVER_TIMESTAMP, 'status': 'connected'})
-        print("✅ Firestore connection test successful")
+        print("[OK] Firestore connection test successful")
         return True
     except Exception as e:
-        print(f"❌ Firestore connection test failed: {e}")
+        print(f"[ERROR] Firestore connection test failed: {e}")
         return False

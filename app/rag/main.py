@@ -29,12 +29,12 @@ def ingest(reset_collection: bool = False):
     # Step 1: Load documents
     print("\n[1/5] Loading documents...")
     docs = load_md_files()
-    print(f"✓ Loaded {len(docs)} documents")
+    print(f"[OK] Loaded {len(docs)} documents")
     
     # Step 2: Chunk documents
     print("\n[2/5] Chunking documents...")
     chunks = chunk_documents(docs)
-    print(f"✓ Created {len(chunks)} chunks")
+    print(f"[OK] Created {len(chunks)} chunks")
     
     # Show chunks per source
     chunk_sources = [c.metadata.get('source', 'unknown') for c in chunks]
@@ -78,8 +78,8 @@ def ingest(reset_collection: bool = False):
     
     # Verify ingestion
     final_count = vectorstore._collection.count()
-    print(f"\n✓ Ingestion complete!")
-    print(f"✓ Total vectors in database: {final_count}")
+    print(f"\n[OK] Ingestion complete!")
+    print(f"[OK] Total vectors in database: {final_count}")
     
     # Verify all sources are present
     all_docs = vectorstore.get()
@@ -96,11 +96,11 @@ def ingest(reset_collection: bool = False):
         missing = loaded_sources - db_sources_set
         
         if missing:
-            print(f"\n⚠️  WARNING: {len(missing)} documents missing from database!")
+            print(f"\n[WARNING] {len(missing)} documents missing from database!")
             for source in sorted(missing):
                 print(f"  - {source}")
         else:
-            print(f"\n✅ All {len(loaded_sources)} documents successfully embedded!")
+            print(f"\n[OK] All {len(loaded_sources)} documents successfully embedded!")
     
     print("\n" + "="*60)
     print("INGESTION COMPLETE")
@@ -112,4 +112,4 @@ def ingest(reset_collection: bool = False):
 if __name__ == "__main__":
     # Use reset_collection=True to start fresh (recommended after adding new files)
     ingest(reset_collection=True)
-    print("\n✓ Run with reset_collection=False to update existing database")
+    print("\n[OK] Run with reset_collection=False to update existing database")

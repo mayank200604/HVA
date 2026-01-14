@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import ParticleSphere from "../shared/ParticleSphere";
 import { useAuth } from "../contexts/AuthContext";
+import { RAGNavbarButton } from "../components/ChatFAB";
 
 // Simple markdown to JSX converter for basic rendering
 const renderMarkdown = (text) => {
@@ -873,10 +874,13 @@ export default function ChatAppPage() {
               Hybrid Voice Assistant (Phase 1)
             </p>
           </div>
+
+          {/* RAG Button - Mobile/Tablet Only */}
+          <RAGNavbarButton />
         </header>
 
         {/* Messages */}
-        <section className={`flex-1 space-y-3 sm:space-y-4 overflow-y-auto px-3 py-4 sm:px-6 md:px-10 md:py-8 ${debugError ? "pt-16" : ""}`}>
+        <section className={`flex-1 space-y-3 sm:space-y-4 overflow-y-auto scroll-smooth px-3 py-4 sm:px-6 md:px-10 md:py-8 ${debugError ? "pt-16" : ""}`} style={{ scrollBehavior: 'smooth' }}>
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full px-4">
               <div className="relative flex items-center justify-center transition-all duration-700 hover:scale-[1.02]">

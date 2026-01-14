@@ -60,29 +60,29 @@ export default function LandingPage() {
       <div className="pointer-events-none absolute -right-40 bottom-10 h-80 w-80 rounded-full bg-violet-500/25 blur-3xl" />
 
       {/* NAVBAR */}
-      <header className="relative z-20 flex items-center justify-between px-6 py-4 md:px-12">
+      <header className="relative z-20 flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 md:px-12">
         <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900/80 border border-cyan-400/60 shadow-[0_0_30px_rgba(45,212,191,0.5)]">
-            <div className="h-5 w-5 rounded-full bg-gradient-to-tr from-cyan-400 to-sky-500" />
+          <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-slate-900/80 border border-cyan-400/60 shadow-[0_0_30px_rgba(45,212,191,0.5)]">
+            <div className="h-4 w-4 sm:h-5 sm:w-5 rounded-full bg-gradient-to-tr from-cyan-400 to-sky-500" />
           </div>
-          <span className="text-sm font-semibold tracking-tight md:text-base">
+          <span className="text-xs sm:text-sm font-semibold tracking-tight md:text-base">
             Hybrid Voice Assistant
           </span>
         </div>
 
-        <nav className="hidden items-center gap-6 text-xs text-slate-300 md:flex">
-          <a href="#features" className="hover:text-slate-50">
+        <nav className="hidden items-center gap-4 sm:gap-6 text-xs text-slate-300 md:flex">
+          <a href="#features" className="hover:text-slate-50 transition-colors">
             Features
           </a>
-          <a href="#capabilities" className="hover:text-slate-50">
+          <a href="#capabilities" className="hover:text-slate-50 transition-colors">
             Capabilities
           </a>
-          <a href="#roadmap" className="hover:text-slate-50">
+          <a href="#roadmap" className="hover:text-slate-50 transition-colors">
             Roadmap
           </a>
           <Link
             to="/auth"
-            className="rounded-full border border-slate-700/80 bg-slate-900/70 px-4 py-1.5 text-xs hover:bg-slate-800/80"
+            className="rounded-full border border-slate-700/80 bg-slate-900/70 px-4 py-1.5 text-xs hover:bg-slate-800/80 transition-colors"
           >
             Log in
           </Link>
@@ -90,7 +90,7 @@ export default function LandingPage() {
 
         <Link
           to="/auth"
-          className="inline-flex rounded-full border border-slate-700/80 bg-slate-900/70 px-3 py-1 text-xs md:hidden"
+          className="inline-flex rounded-full border border-slate-700/80 bg-slate-900/70 px-3 py-1.5 text-xs md:hidden hover:bg-slate-800/80 transition-colors"
         >
           Log in
         </Link>
@@ -102,12 +102,12 @@ export default function LandingPage() {
           {/* LEFT HERO */}
           <div>
             {/* PHASE INDICATOR */}
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-950/40 px-3 py-1.5 text-[11px] text-emerald-300 mb-4 glow-pulse">
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-950/40 px-3 py-1.5 text-[10px] sm:text-[11px] text-emerald-300 mb-3 sm:mb-4 glow-pulse">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
               <span className="font-medium">Phase 1 · Multi-Level AI Chat System</span>
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-semibold leading-tight tracking-tight md:text-5xl lg:text-6xl">
+            <h1 className="text-2xl sm:text-3xl font-semibold leading-tight tracking-tight md:text-4xl lg:text-5xl xl:text-6xl">
               A{" "}
               <span className="bg-gradient-to-r from-cyan-400 via-sky-400 to-violet-400 bg-clip-text text-transparent">
                 voice-first AI console
@@ -115,24 +115,24 @@ export default function LandingPage() {
               built for developers.
             </h1>
 
-            <p className="mt-4 max-w-xl text-sm text-slate-300 md:text-base leading-relaxed">
+            <p className="mt-3 sm:mt-4 max-w-xl text-xs sm:text-sm md:text-base text-slate-300 leading-relaxed">
               An intelligent multi-level chat system with advanced reasoning, code generation,
               image creation, and RAG-powered career guidance. Built on a foundation designed
               for voice interaction.
             </p>
 
             {/* CTA BUTTONS */}
-            <div className="mt-6 flex flex-wrap items-center gap-4">
+            <div className="mt-5 sm:mt-6 flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 sm:gap-4">
               <Link
                 to="/auth"
-                className="rounded-full bg-cyan-400 px-7 py-2.5 text-sm font-medium text-black shadow-lg shadow-cyan-400/40 transition hover:translate-y-0.5 hover:bg-cyan-300"
+                className="rounded-full bg-cyan-400 px-6 sm:px-7 py-2.5 text-sm font-medium text-black shadow-lg shadow-cyan-400/40 transition hover:translate-y-0.5 hover:bg-cyan-300 text-center"
               >
                 Get started free
               </Link>
 
               <Link
                 to="/app"
-                className="inline-flex items-center gap-2 rounded-full border border-slate-700 px-6 py-2 text-sm text-slate-200 hover:bg-slate-900/70"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-700 px-5 sm:px-6 py-2 text-sm text-slate-200 hover:bg-slate-900/70"
               >
                 <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-800 text-[10px]">
                   ▶
@@ -142,7 +142,7 @@ export default function LandingPage() {
             </div>
 
             {/* TECH STACK BADGES */}
-            <div className="mt-6 flex flex-wrap items-center gap-2">
+            <div className="mt-5 sm:mt-6 flex flex-wrap items-center gap-2">
               <span className="text-[10px] text-slate-400 uppercase tracking-wider">Powered by</span>
               {["Groq", "Gemini", "Flux", "ChromaDB"].map((tech, idx) => (
                 <span
@@ -623,19 +623,19 @@ export default function LandingPage() {
       </main>
 
       {/* FOOTER */}
-      <footer className="relative z-10 border-t border-slate-800/80 bg-slate-950/90 px-6 py-4 md:px-12 mt-16">
-        <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
-          <span>Hybrid Voice Assistant · Phase 1 · Developer-first AI console</span>
-          <div className="flex gap-2">
+      <footer className="relative z-10 border-t border-slate-800/80 bg-slate-950/90 px-4 sm:px-6 py-4 md:px-12 mt-12 sm:mt-16">
+        <div className="flex flex-col sm:flex-row flex-wrap items-center justify-between gap-3 sm:gap-4 text-xs text-slate-400">
+          <span className="text-center sm:text-left text-[10px] sm:text-xs">Hybrid Voice Assistant · Phase 1 · Developer-first AI console</span>
+          <div className="flex gap-2 w-full sm:w-auto justify-center sm:justify-end">
             <Link
               to="/auth"
-              className="rounded-full bg-cyan-400 px-4 py-1.5 text-xs font-medium text-black hover:bg-cyan-300"
+              className="rounded-full bg-cyan-400 px-4 py-1.5 text-xs font-medium text-black hover:bg-cyan-300 transition-colors flex-1 sm:flex-none text-center"
             >
               Start building
             </Link>
             <Link
               to="/app"
-              className="rounded-full border border-slate-700 px-4 py-1.5 text-xs hover:bg-slate-900"
+              className="rounded-full border border-slate-700 px-4 py-1.5 text-xs hover:bg-slate-900 transition-colors flex-1 sm:flex-none text-center"
             >
               Try demo
             </Link>

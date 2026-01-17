@@ -72,6 +72,7 @@ export default function ChatAppPage() {
   const [textareaHeight, setTextareaHeight] = useState(40);
   const [isFocused, setIsFocused] = useState(false);
   const [debugError, setDebugError] = useState(null);
+  const [showWarmupPopup, setShowWarmupPopup] = useState(false);
 
   const [chatHistory, setChatHistory] = useState([]);
   const [currentChatId, setCurrentChatId] = useState(null);
@@ -89,6 +90,19 @@ export default function ChatAppPage() {
 
   // User-specific localStorage keys
   const getUserStorageKey = (key) => `${key}_${currentUser?.uid || 'anonymous'}`;
+
+  useEffect(() => {
+    const storageKey = `hva_chat_warmup_seen_${currentUser?.uid || "anonymous"}`;
+    try {
+      const seen = sessionStorage.getItem(storageKey);
+      if (!seen) {
+        setShowWarmupPopup(true);
+        sessionStorage.setItem(storageKey, "1");
+      }
+    } catch {
+      setShowWarmupPopup(true);
+    }
+  }, [currentUser?.uid]);
 
   // --- Load saved chat history on mount ---
   useEffect(() => {
@@ -684,6 +698,44 @@ export default function ChatAppPage() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-950 text-slate-50">
+      {showWarmupPopup && (
+        <div className="fixed inset-0 z-[1001] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setShowWarmupPopup(false)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900/95 p-4 sm:p-5 shadow-2xl"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+              <div>
+                <h3 className="text-sm sm:text-base font-semibold text-slate-100">First load may take 1–2 minutes</h3>
+                <p className="mt-1 text-xs sm:text-sm text-slate-400">
+                  Please wait while the chat modules warm up. After the first response, messages will be faster.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowWarmupPopup(false)}
+                className="rounded-lg border border-slate-700 bg-slate-800/60 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                onClick={() => setShowWarmupPopup(false)}
+                className="w-full sm:w-auto rounded-lg bg-cyan-400 px-3 py-2 text-xs font-medium text-black hover:bg-cyan-300"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Debug Error Display */}
       {debugError && (
         <div className="fixed top-0 left-0 right-0 bg-red-900 text-red-100 p-3 z-50">
